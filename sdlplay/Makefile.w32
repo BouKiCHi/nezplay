@@ -1,0 +1,92 @@
+#
+# Nakefile for MinGW32
+#
+
+MAKE_CMD = make -f Makefile.base
+
+SFX = .exe
+
+#
+# Commands for building
+#
+ifeq ($(OS),Windows_NT)
+PREFIX=
+else
+PREFIX=i586-mingw32-
+endif
+
+CC = $(PREFIX)gcc
+CXX = $(PREFIX)g++
+STRIP=$(PREFIX)strip
+AR=$(PREFIX)ar
+
+
+#
+# Target name
+#
+ifdef DEBUG
+
+OBJDIR = obj-w32-debug
+
+TARGET = nezplay_dbg$(SFX)
+TARGET_S = nezplays_dbg$(SFX)
+
+else
+
+OBJDIR=obj-w32
+
+TARGET = nezplay$(SFX)
+TARGET_S = nezplays$(SFX)
+
+endif
+
+
+#
+# SDL stuff
+#
+SDL_CONFIG = sdl-config.w32
+
+SDL_SLIBS := `$(SDL_CONFIG) --static-libs`
+SDL_LIBS := `$(SDL_CONFIG) --libs | sed -e "s/-mwindows//g"`
+SDL_LIBS += -static-libgcc
+SDL_CFLAGS := `$(SDL_CONFIG) --cflags`
+
+
+SDL_A = $(MINGW_PATH)/lib/libSDL.a
+
+# SLIBS = `$(SDL_CONFIG) --static-libs \
+# | sed -e 's|-lSDL |$(SDL_A) |g' | sed -e 's|-mwindows||g'`
+
+SLIBS += -ldinput8
+
+
+#
+# Make command
+#
+DO_MAKE = $(MAKE_CMD) \
+ TARGET=$(TARGET) \
+ TARGET_S=$(TARGET_S) \
+ STRIP=$(STRIP) \
+ CC=$(CC) \
+ CXX=$(CXX)\
+ AR=$(AR) \
+ SDL_LIBS="$(SDL_LIBS)" \
+ SDL_CFLAGS="$(SDL_CFLAGS)" \
+ OBJDIR="$(OBJDIR)"
+
+#
+# switchs
+#
+all :
+	$(DO_MAKE) dynamic
+	$(STRIP) $(TARGET)
+
+release : 
+	$(DO_MAKE) release
+			
+static : 
+	$(DO_MAKE) $(TARGET_S)
+	
+clean :
+	$(DO_MAKE) clean
+

@@ -1,0 +1,181 @@
+#
+# Makefile for nezplay
+#
+
+# DEBUG = 1
+
+LIBNEZ = libnez.a
+
+ifndef DEBUG
+
+TARGET = nezplay
+TARGET_S = nezplay_s
+
+OBJDIR = obj-x86-gcc
+
+else
+
+OBJDIR = obj-x86-gcc-dbg
+TARGET = nezplay_dbg
+TARGET_S = nezplays_dbg
+
+endif
+
+
+STRIP = strip
+
+AR = ar
+CC = gcc
+CXX = g++
+CFLAGS = $(ARCHFLAGS) -g
+LFLAGS = $(ARCHFLAGS) -g
+
+ifndef DEBUG
+CFLAGS += -O3
+else
+CFLAGS += -DDEBUG
+endif
+
+SDL_CONFIG = sdl-config
+
+SDL_SLIBS := `$(SDL_CONFIG) --static-libs`
+SDL_LIBS := `$(SDL_CONFIG) --libs`
+SDL_CFLAGS := `$(SDL_CONFIG) --cflags`
+
+
+LIBS = $(SDL_LIBS)
+SLIBS = $(SDL_SLIBS)
+CFLAGS += $(SDL_CFLAGS)
+
+SRCDIR = ../src
+
+NESDIR    = nes
+DEVDIR    = nes/device
+YMDIR     = nes/device/ym2151
+
+KM6502DIR = nes/km6502
+KMZ80DIR  = nes/kmz80
+
+MAINDIR   = .
+
+
+NESSRCS = \
+  audiosys.c handler.c m_gbr.c \
+  m_hes.c m_kss.c m_nsf.c m_zxay.c nsdout.c \
+  nsdplay.c nsf6502.c songinfo.c 
+
+DEVSRCS = \
+ logtable.c s_apu.c s_deltat.c s_dmg.c s_fds.c \
+ s_fds1.c s_fds2.c s_fds3.c s_fme7.c s_hes.c s_logtbl.c \
+ s_mmc5.c s_n106.c s_opl.c s_opltbl.c s_psg.c s_scc.c s_sng.c \
+ s_vrc6.c s_vrc7.c 
+ 
+
+DEVSRCS += s_opm.c
+ 
+YMSRCS = ym2151.c
+
+KMZ80SRCS = \
+ kmdmg.c kmevent.c kmr800.c kmz80.c kmz80c.c kmz80t.c
+
+GLUESRCS = \
+ nezglue.c dasm6502.c
+
+MAINSRCS = \
+ sdlplay.c nlg.c
+
+DIRS = $(NESDIR) $(KMZ80DIR) $(KM6502DIR) $(DEVDIR) $(YMDIR)
+
+
+LIBSRCS = \
+       $(addprefix $(NESDIR)/,$(NESSRCS)) \
+       $(addprefix $(KMZ80DIR)/,$(KMZ80SRCS)) \
+       $(addprefix $(DEVDIR)/,$(DEVSRCS)) \
+       $(addprefix $(YMDIR)/,$(YMSRCS)) \
+       $(GLUESRCS) \
+
+MAINSRCFILES = $(MAINSRCS)
+
+
+#
+# FMGEN
+#
+# FMGENDIR  = nes/device/fmgen008
+#
+# FMGENSRCS = \
+# fmtimer.cpp fmgen.cpp opm.cpp psg.cpp
+#
+# DIRS += $(FMGENDIR)
+#
+# LIBSRCS +=  $(addprefix $(FMGENDIR)/,$(FMGENSRCS))
+#
+
+
+
+SRCS =  $(addprefix $(MAINDIR)/,$(MAINSRCS))
+
+LIBOBJS = $(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(LIBSRCS))))
+OBJS = $(addprefix $(OBJDIR)/,$(MAINSRCFILES:.c=.o ))
+
+LIBNEZ := $(OBJDIR)/$(LIBNEZ)
+
+CFLAGS += $(addprefix -I$(SRCDIR)/,$(DIRS))
+CFLAGS += -I.
+
+
+all : $(TARGET) $(TARGET_S)
+
+dynamic : $(TARGET)
+
+
+static : $(TARGET_S)
+
+lib : $(LIBNEZ)
+
+release : $(TARGET) $(TARGET_S)
+	$(STRIP) $(TARGET)
+	$(STRIP) $(TARGET_S)
+	
+#
+# Rules
+#
+
+$(OBJDIR)/%.o : %.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+$(OBJDIR)/%.o : $(SRCDIR)/%.c
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+$(OBJDIR)/%.o : $(SRCDIR)/%.cpp
+	$(CXX) -c $(CFLAGS) -o $@ $<
+
+
+$(LIBNEZ) : $(OBJDIR) $(LIBOBJS)
+	$(AR) rcs $@ $(LIBOBJS)
+
+$(OBJDIR) :
+	mkdir $(OBJDIR)
+	mkdir $(addprefix $(OBJDIR)/,$(DIRS))
+
+
+$(TARGET) : $(OBJDIR) $(LIBNEZ) $(OBJS)
+	$(CXX) $(LFLAGS) $(OBJS) $(LIBNEZ) -o $@ $(LIBS)
+	
+$(TARGET_S) : $(OBJDIR) $(LIBNEZ) $(OBJS)
+	$(CXX) $(LFLAGS) $(OBJS) $(LIBNEZ) -o $@ $(SLIBS)
+	
+#
+# Options
+#
+
+install : $(TARGET) $(TARGET_S)
+	cp $(TARGET) /usr/local/bin/
+	cp $(TARGET_S) /usr/local/bin/
+
+
+clean :
+	rm -rf $(OBJS)
+	rm -rf $(OBJDIR)
+	rm -f $(TARGET)
+	rm -f $(TARGET_S)
+

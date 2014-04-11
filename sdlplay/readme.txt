@@ -1,0 +1,17 @@
+NEZPLAY on SDL
+
+■特徴
+　NEZplugをベースとしたコマンドラインプレイヤーです。
+NEZplugが対応しているファイル、また、NRTDRVのNRDファイルを再生することが可能です。
+
+■NRTDRV楽曲再生時の注意点
+　KSSNRT.BINとNRTDRV.BINが楽曲ファイルのあるディレクトリか、カレントディレクトリの
+いずれかにあり必要があります。
+
+■ライセンス
+　ソースコードのライセンスはym2151部分を除いて本家NEZplugに準拠します。
+SDLに関してはSDLのライセンスに準拠します。
+
+■連絡先
+NEZplug改造 : BouKiCHi
+twitter: @bkc_alf
