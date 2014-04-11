@@ -3,4 +3,4 @@ sdlplay/nezplay_s
 
 sdlplay/obj-x86-gcc
 sdlplay/obj-w32
-
+sdlplay/obj-w32-debug

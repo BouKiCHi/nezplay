@@ -46,9 +46,15 @@ endif
 #
 SDL_CONFIG = sdl-config.w32
 
-SDL_SLIBS := `$(SDL_CONFIG) --static-libs`
 SDL_LIBS := `$(SDL_CONFIG) --libs | sed -e "s/-mwindows//g"`
 SDL_LIBS += -static-libgcc
+
+
+#
+# static link for w32 is currently not supported.
+#
+SDL_SLIBS := $(SDL_LIBS)
+
 SDL_CFLAGS := `$(SDL_CONFIG) --cflags`
 
 
@@ -70,6 +76,7 @@ DO_MAKE = $(MAKE_CMD) \
  CC=$(CC) \
  CXX=$(CXX)\
  AR=$(AR) \
+ SDL_SLIBS="$(SDL_SLIBS)" \
  SDL_LIBS="$(SDL_LIBS)" \
  SDL_CFLAGS="$(SDL_CFLAGS)" \
  OBJDIR="$(OBJDIR)"

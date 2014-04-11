@@ -1,3 +1,7 @@
+//
+// sdlplay.c
+//
+
 #include <stdio.h>
 #include <getopt.h>
 #include <SDL.h>
@@ -400,9 +404,9 @@ void usage(void)
 #define NLG_NORMAL 1
 #define NLG_SAMEPATH 2
 
-int main(int argc, char *argv[])
+int audio_main(int argc, char *argv[])
 {
-    char nlg_path[2048];
+    char nlg_path[NSF_FNMAX];
     
     char *nlgfile = NULL;
     char *pcmfile = NULL;
@@ -432,6 +436,9 @@ int main(int argc, char *argv[])
     printf(
         "NEZPLAY on SDL Version %s"
         "\nbuild at %s\n", NEZ_VER, __DATE__);
+
+	SetNSFExecPath(argv[0]);
+	
     
     if (argc < 2)
     {
@@ -521,7 +528,7 @@ int main(int argc, char *argv[])
     if (logfile)
         OpenLogNSF(logfile);
     
-    // ファイル数分だけ処理
+    // ファイルの数だけ処理
     for(;optind < argc; optind++)
     {
         if (nlg_log)
@@ -581,3 +588,16 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+
+int main(int argc, char *argv[])
+{
+	int ret = audio_main(argc, argv);
+
+#ifdef DEBUG
+	getch();
+#endif
+	
+	return ret;
+}
+

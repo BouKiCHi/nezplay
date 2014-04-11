@@ -12,13 +12,10 @@
 
 #include <sys/stat.h> 
 
-#define NSF_MAXSIZE (8 * 1024 * 1024)
-#define FN_MAX 4096
-
 
 typedef struct
 {
-    char file[FN_MAX];
+    char file[NSF_FNMAX];
     char id[4];
     int  songno;
     char title[512];
@@ -38,7 +35,9 @@ NSF_STATE nsf_state;
 
 static PLAYLIST_TAG *nsf_playlist = NULL;
 
-static char nsf_filename[FN_MAX];
+static char nsf_filename[NSF_FNMAX];
+static char nsf_execpath[NSF_FNMAX] = "";
+
 static unsigned char *nsf_data = NULL;
 
 static int nsf_size = 0;
@@ -297,9 +296,15 @@ void VolumeKVF(char *key, char *value)
 *****************/
 
 
-char *MakePath(char *dest, const char *dir, const char *filename )
+char *MakePath(char *dest, const char *dir, const char *filename)
 {
-    char *tail = strrchr(dir , PATH_SEP);
+	const char *file_tail = strrchr(filename, PATH_SEP);
+    const char *tail = strrchr(dir, PATH_SEP);
+	
+	if (file_tail)
+		file_tail++;
+	else
+		file_tail = filename;
     
     if (!tail)
     {
@@ -308,7 +313,7 @@ char *MakePath(char *dest, const char *dir, const char *filename )
     else
     {
         strcpy(dest, dir);
-        strcpy(dest + ( tail - dir ) + 1, filename);
+	    strcpy(dest + ( tail - dir ) + 1, file_tail);
     }
     
     return dest;
@@ -357,33 +362,43 @@ int GetNRTDRVVer(void)
     return 1;
 }
 
+#ifdef DEBUG
+#define ERROR_FP_DBG(fptr, path) if (!fptr)  printf("File open error : %s\n", path)
+#else
+#define ERROR_FP_DBG(fptr, path) {}
+#endif
+
 //
 // read file to stock[BIN_???] with malloc
 //
 int LoadBinaryFromFile(BIN *bin, const char *basedir, const char *binfile)
 {
     int size;
-    char PATH[FN_MAX];
+    char PATH[NSF_FNMAX];
     
     FILE *fp = NULL;
 
-    /* 曲ファイルと同一のフォルダのファイルを読み込む */
+    /* 曲ファイルと同一のフォルダにあるファイルを読み込む */
     if (basedir)
     {
         MakePath(PATH, basedir, binfile);
         fp = fopen(PATH, "rb");
-        if (!fp)
-        {
-        
-            printf("File open error : %s\n",PATH);
-        }
-        
+        ERROR_FP_DBG(fp, PATH);
+    }
+    
+	/* 実行ディレクトリの中にあるファイルを読む */
+    if (!fp && nsf_execpath[0])
+    {
+        MakePath(PATH, nsf_execpath, binfile);
+        fp = fopen(PATH, "rb");
+        ERROR_FP_DBG(fp, PATH);
     }
     
     if (!fp)
     {
-        /* カレントフォルダのを読み込む */
+        /* カレントフォルダのファイルを読む */
         fp = fopen(binfile, "rb");
+        
         if (!fp)
         {
         
@@ -439,6 +454,7 @@ int LoadFileToMemory(const char *file, void *buf)
 
     return size;
 }
+
 
 void SaveMemory(const char *file, void *buf, int len)
 {
@@ -525,9 +541,10 @@ int LoadNRDMemory(void)
 
 int LoadNRD(const char *file)
 {
-    
+    // ドライバ本体
     LoadBinaryFromFile(&stock[BIN_DRV], file, "NRTDRV.BIN");
     
+	// ヘッダ
     switch(GetNRTDRVVer())
     {
         case 2:
@@ -538,7 +555,8 @@ int LoadNRD(const char *file)
         break;
     }
     
-    LoadBinaryFromFile(&stock[BIN_SONG], NULL, file);
+	// NRD読み出し
+    LoadBinaryFromFile(&stock[BIN_SONG], file, file);
     
     LoadNRDMemory();
     
@@ -558,7 +576,7 @@ void GetM3UInfo(const char *m3u_file, const char *m3u_line,PLAYLIST_TAG *tag)
     int len;
 
     char timecode[128];
-    char fnbuf[FN_MAX];
+    char fnbuf[NSF_FNMAX];
     
     memset(&tag, sizeof(PLAYLIST_TAG), 0);
 
@@ -1121,7 +1139,7 @@ void SetSongNoNSF(int no)
         nsf_playlist_pos = no;
     }
     else
-        nsf_songno = no;    
+        nsf_songno = no;
 }
 
 int GetSongNoNSF(void)
@@ -1242,9 +1260,15 @@ int LoadNSFData( int freq , int ch , int vol , int songno )
     return LoadNSFBody();
 }
 
+// 実行パスをセットする
+void SetNSFExecPath(const char *path)
+{
+	strcpy(nsf_execpath, path);
+}
+
 int LoadNSF(const char *file, int freq, int ch, int vol, int songno)
 {
-    char vol_file[FN_MAX];
+    char vol_file[NSF_FNMAX];
 
     SONGINFO_SetTitle("");
     

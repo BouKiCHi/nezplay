@@ -1,6 +1,9 @@
 #ifndef __NEZGLUE_H__
 #define __NEZGLUE_H__
 
+#define NSF_MAXSIZE (8 * 1024 * 1024)
+#define NSF_FNMAX 4096
+
 /* Build Driver and Song on Memory */
 int LoadHeader(void *src, int len);
 int LoadDriver(void *src, int len);
@@ -10,6 +13,8 @@ int LoadSong(void *src, int len);
 int GetNRTDRVVer(void);
 
 /* Basic Methods */
+void SetNSFExecPath(const char *path);
+
 int LoadNSF(const char *file, int freq, int ch, int vol, int songno);
 
 void SetSongNoNSF(int song);
