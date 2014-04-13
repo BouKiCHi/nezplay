@@ -117,6 +117,7 @@ void getNote(char *dest,int freq);
 
 /* Setting */
 void N163SetOldMode(int flag);
+void SetStrictModeNSF(int flag);
 
 /* in dasm6502.c */
 int len6502(int op);

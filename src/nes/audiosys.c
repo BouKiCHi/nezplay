@@ -28,6 +28,7 @@ static Uint32 naf_prev[2] = { 0x8000, 0x8000 };
 
 NES_DEVICE_INTERFACE nes_devif;
 
+
 void NESAudioSetDebug(int level)
 {
 	nes_debug_mode = level;

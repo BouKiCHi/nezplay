@@ -987,6 +987,13 @@ void N163SetOldMode(int flag)
     nes_devif.n163_oldmode = flag;
 }
 
+// 厳密なエミュレーションモード
+void SetStrictModeNSF(int flag)
+{
+    NESAudioSetStrict(flag);
+}
+
+
 /*
   Debug functions
 */

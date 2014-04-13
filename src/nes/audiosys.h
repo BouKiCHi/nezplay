@@ -126,7 +126,6 @@ void NESAudioFilterSet(Uint filter);
 void NESAudioOpenLog(const char *filename);
 void NESAudioCloseLog(void);
 
-    
 void NESAudioSetDebug(int level);
 void NESAudioSetStrict(int level);
 
