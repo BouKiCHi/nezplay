@@ -66,6 +66,8 @@ struct  CTCregs
 	
 	Uint32 const_reg;
 	Uint32 count;
+
+	Uint32 irq_count; // how many interrupted in a sec.
 	
 };
 
@@ -87,6 +89,10 @@ struct  KSSSEQ_TAG {
 	Uint32 cpf;		/* cycles per frame:fixed point */
 	Uint32 cpfrem;	/* cycle remain */
 	Uint32 total_cycles;	/* total played cycles */
+    
+    Uint32 freq; /* frequency */
+	Uint32 samples;	/* sample counter */
+	Uint32 total_samples;	/* total played samples */
 
 	Uint32 startsong;
 	Uint32 maxsong;
@@ -220,6 +226,27 @@ __inline static void synth(KSSSEQ *THIS_, Int32 *d)
 			}
 			break;
 	}
+    
+    THIS_->samples++;
+    THIS_->total_samples++;
+    
+    if (THIS_->samples >= THIS_->freq)
+    {
+        THIS_->samples = 0;
+        int i;
+        for(i=0; i < 16; i++)
+        {
+            if (THIS_->ctc[i].irq_count)
+            {
+                if (nes_logfile)
+                    fprintf(nes_logfile,"CTC_COUNT:%d:%d\n"
+                        , i & 3
+                        , THIS_->ctc[i].irq_count);
+                THIS_->ctc[i].irq_count = 0;
+            }
+        }
+    }
+
 }
 
 __inline static void volume(KSSSEQ *THIS_, Uint32 v)
@@ -615,8 +642,9 @@ static void ctc_event(KSSSEQ *THIS_,int i)
 					THIS_->ctc[i + 3].trigger = 1;
 				}
 				
-				if (THIS_->ctc[i].irq_flag && !check_irq(THIS_))
-				{
+//				if (THIS_->ctc[i].irq_flag && !check_irq(THIS_))
+                if (THIS_->ctc[i].irq_flag)
+                {
 					THIS_->ctc[i].irq = 1;
 					
                     // CTC3 IRQ
@@ -635,6 +663,7 @@ static void ctc_event(KSSSEQ *THIS_,int i)
 	// IRQ deley
 	if (THIS_->ctc[i].irq && !check_irq(THIS_))
 	{
+		THIS_->ctc[i].irq_count++;
 		THIS_->ctc[i].irq = 0;
 		THIS_->bus_vect = THIS_->ctc_vect[i / 4] + (ch * 2);
 		timer_irq(THIS_);
@@ -664,7 +693,13 @@ static void reset(KSSSEQ *THIS_)
 	freq = NESAudioFrequencyGet();
 	song = SONGINFO_GetSongNo() - 1;
 	if (song >= THIS_->maxsong) song = THIS_->startsong - 1;
+    
+    XMEMSET(THIS_->ctc, 0x00, sizeof(THIS_->ctc));
 
+    THIS_->freq = freq;
+    THIS_->samples = 0;
+    THIS_->total_samples = 0;
+    
 	/* sound reset */
 	if (THIS_->extdevice & EXTDEVICE_SNG)
 	{

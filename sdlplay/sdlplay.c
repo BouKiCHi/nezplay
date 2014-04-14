@@ -6,6 +6,8 @@
 #include <getopt.h>
 #include <SDL.h>
 
+#undef main
+
 #include <signal.h>
 #define USE_SDL
 
@@ -14,7 +16,7 @@
 int debug = 0;
 int verbose = 0;
 
-#define NEZ_VER "2014-04-14"
+#define NEZ_VER "2014-04-15"
 
 #define PCM_BLOCK 2048
 #define PCM_BYTE_PER_SAMPLE 2
@@ -431,7 +433,7 @@ int audio_main(int argc, char *argv[])
     
     int rate   = 44100;
     int vol    = -1;
-    int len    = 300;
+    int len    = 360;
     int songno = -1;
     
     int nlg_log = 0;

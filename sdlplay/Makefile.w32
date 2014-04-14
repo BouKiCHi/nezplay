@@ -46,7 +46,9 @@ endif
 #
 SDL_CONFIG = sdl-config.w32
 
-SDL_LIBS := `$(SDL_CONFIG) --libs | sed -e "s/-mwindows//g"`
+SDL_LIBS := -mconsole 
+SDL_LIBS += `$(SDL_CONFIG) --libs | sed -e "s|-mwindows||g" | \
+ sed -e  "s|-lSDLmain||g" | sed -e  "s|-lmingw32||g"`
 SDL_LIBS += -static-libgcc
 
 
@@ -55,7 +57,7 @@ SDL_LIBS += -static-libgcc
 #
 SDL_SLIBS := $(SDL_LIBS)
 
-SDL_CFLAGS := `$(SDL_CONFIG) --cflags`
+SDL_CFLAGS := `$(SDL_CONFIG) --cflags | sed -e "s/-Dmain=SDL_main//g"`
 
 
 SDL_A = $(MINGW_PATH)/lib/libSDL.a
