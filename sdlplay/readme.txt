@@ -15,3 +15,8 @@ SDLに関してはSDLのライセンスに準拠します。
 ■連絡先
 NEZplug改造 : BouKiCHi
 twitter: @bkc_alf
+
+■履歴
+2014-04-14
+verbose機能の追加(-wオプション)
+厳密モードの追加(-xオプション)

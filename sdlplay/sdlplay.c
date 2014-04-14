@@ -12,8 +12,9 @@
 #include "nezglue.h"
 
 int debug = 0;
+int verbose = 0;
 
-#define NEZ_VER "2014-04-11"
+#define NEZ_VER "2014-04-14"
 
 #define PCM_BLOCK 2048
 #define PCM_BYTE_PER_SAMPLE 2
@@ -31,6 +32,7 @@ static struct pcm_struct
     short buffer[ PCM_BUFFER_LEN ];
 } pcm;
 
+#define PRNDBG(xx) if (verbose) printf(xx)
 
 #include "fade.h"
 
@@ -94,12 +96,20 @@ static int audio_init( int freq )
     memset( &pcm , 0 , sizeof( pcm ) );
     
     SDL_PauseAudio( 0 );
+    
+    PRNDBG("Start Audio\n");
+    
     return 0;
 }
 
 static void audio_free( void )
 {
+    PRNDBG("Close Audio\n");
     SDL_CloseAudio();
+    PRNDBG("Quit SDL\n");
+    SDL_Quit();
+    PRNDBG("OK\n");
+    
 }
 
 static int audio_poll_event( void )
@@ -276,7 +286,11 @@ static void audio_loop( int freq , int len )
     if ( !debug )
         printf("\n");
     
+    PRNDBG("Stopping...\n");
+
     SDL_PauseAudio(1);
+
+    PRNDBG("OK\n");
 
 }
 
@@ -383,20 +397,22 @@ void usage(void)
     " Options ...\n"
     " -s rate   : Set playback rate\n"
     " -n no     : Set song number\n"
-    " -v vol    : Set volume.\n"
+    " -v vol    : Set volume\n"
     " -l n      : Set song length (n secs)\n"
     "\n"
-    " -o file   : Generate an Wave file(PCM).\n"
+    " -o file   : Generate an Wave file(PCM)\n"
     " -p        : NULL PCM mode.\n"
     "\n"
-    " -z        : Set N163 mode.\n"
+    " -z        : Set N163 mode\n"
     "\n"
-    " -r file   : Record a NLG .\n"
-    " -b        : Record a NLG without sound. \n"
+    " -r file   : Record a NLG\n"
+    " -b        : Record a NLG without sound\n"
     "\n"
     " -d file   : Record a debug LOG\n"
+    " -x        : Set strict mode\n"
+    " -w        : Set verbose mode\n"
     "\n"
-    " -h        : Help ( this )\n"
+    " -h        : Help (this)\n"
     "\n"
     );
 }
@@ -422,6 +438,7 @@ int audio_main(int argc, char *argv[])
     int nosound = 0;
     
     int n163mode = 0;
+    int strictmode = 0;
 
 #ifdef _WIN32   
     freopen( "CON", "wt", stdout );
@@ -434,8 +451,10 @@ int audio_main(int argc, char *argv[])
     signal( SIGINT , audio_sig_handle );
     
     printf(
-        "NEZPLAY on SDL Version %s"
-        "\nbuild at %s\n", NEZ_VER, __DATE__);
+        "NEZPLAY on SDL Version %s\n"
+        "build at %s\n"
+        "Ctrl-C to stop\n"
+           , NEZ_VER, __DATE__);
 
 	SetNSFExecPath(argv[0]);
 	
@@ -448,7 +467,7 @@ int audio_main(int argc, char *argv[])
     
     debug = 0;
     
-    while ((opt = getopt(argc, argv, "bs:n:v:l:d:o:r:txhpz")) != -1)
+    while ((opt = getopt(argc, argv, "s:n:v:l:d:o:r:btxhpzw")) != -1)
     {
         switch (opt) 
         {
@@ -486,7 +505,10 @@ int audio_main(int argc, char *argv[])
                 len = atoi(optarg);
                 break;
             case 'x':
-                // NESAudioSetStrict(1);
+                strictmode = 1;
+                break;
+            case 'w':
+                verbose = 1;
                 break;
             case 't':
                 // NESAudioSetDebug(1);
@@ -512,6 +534,8 @@ int audio_main(int argc, char *argv[])
     if (!n163mode)
         N163SetOldMode(1);
 
+    SetStrictModeNSF(strictmode);
+    
 /*
     char buf[1024];
     char *pcmdir = getenv( "HOME" );
@@ -581,10 +605,12 @@ int audio_main(int argc, char *argv[])
     
     audio_free();
     
+    PRNDBG("terminateNSF\n");
     
     TerminateNSF();
     FreeBufferNSF();
 
+    PRNDBG("done\n");
 
     return 0;
 }
