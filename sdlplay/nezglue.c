@@ -53,6 +53,7 @@ static int nsf_m3u = 0;
 
 static int nsf_samprate = 22050;
 static int nsf_total_samples = 0;
+static int nsf_reset = 0;
 
 typedef struct
 {
@@ -927,14 +928,20 @@ void GetExtDeviceStringNSF(char *dest)
 
 void ResetNSF(void)
 {
-    nsf_total_samples = 0;
-    NESReset();
-    
-    NESVolume( nsf_volume );
+    nsf_reset = 1;
 }
 
 void RenderNSF(void *bufp, unsigned samples)
 {
+    if (nsf_reset)
+    {
+        nsf_total_samples = 0;
+        NESReset();
+        
+        NESVolume( nsf_volume );
+        nsf_reset = 0;
+        
+    }
     nsf_total_samples += samples;
     NESAudioRender( bufp , samples );
 }

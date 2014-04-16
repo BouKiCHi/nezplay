@@ -167,26 +167,29 @@ float NES6502GetFramePerSeconds(void)
     return (nsf6502.palntsc ? 50 : 59.94); // PAL or NTSC
 }
 
+// 1つ前のフレームの処理サイクル数
 int NES6502GetFrameCycles(void)
 {
     return work6502_frame_last_cycles;
 }
 
+// 現時点でのフレームの最大処理サイクル数
 int NES6502GetFrameMaxCycles(void)
 {
     return work6502_frame_max_cycles;
 }
 
+// 現時点でのフレームの平均処理サイクル数
 int NES6502GetFrameAvgCycles(void)
 {
     return work6502_frame_avg_cycles;
 }
 
+// フレームの最大処理サイクル数を記録したフレーム番号
 int NES6502GetFrameMaxPosition(void)
 {
     return work6502_frame_max_position;
 }
-
 
 void NES6502SetSkipFrames(Uint frames)
 {

@@ -93,6 +93,9 @@ struct  KSSSEQ_TAG {
     Uint32 freq; /* frequency */
 	Uint32 samples;	/* sample counter */
 	Uint32 total_samples;	/* total played samples */
+    
+    Uint32 frames; /* current frame */
+    Uint32 skip_frames; /* skip frames */
 
 	Uint32 startsong;
 	Uint32 maxsong;
@@ -341,8 +344,6 @@ static Uint32 read_event(void *sp, Uint32 a)
 	KSSSEQ *THIS_ = sp;
 	return THIS_->readmap[a >> 13][a];
 }
-
-
 
 static void KSSMaper8KWrite(KSSSEQ *THIS_, Uint32 a, Uint32 v)
 {
@@ -663,9 +664,12 @@ static void ctc_event(KSSSEQ *THIS_,int i)
 	// IRQ deley
 	if (THIS_->ctc[i].irq && !check_irq(THIS_))
 	{
+        if (ch == 1)
+            THIS_->frames++;
+
 		THIS_->ctc[i].irq_count++;
 		THIS_->ctc[i].irq = 0;
-		THIS_->bus_vect = THIS_->ctc_vect[i / 4] + (ch * 2);
+		THIS_->bus_vect = THIS_->ctc_vect[brd] + (ch * 2);
 		timer_irq(THIS_);
 	}	
 }
@@ -699,6 +703,8 @@ static void reset(KSSSEQ *THIS_)
     THIS_->freq = freq;
     THIS_->samples = 0;
     THIS_->total_samples = 0;
+    THIS_->frames = 0;
+    THIS_->skip_frames = 0;
     
 	/* sound reset */
 	if (THIS_->extdevice & EXTDEVICE_SNG)
@@ -1035,7 +1041,18 @@ static Uint32 load(KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize)
 static KSSSEQ *kssseq = 0;
 static Int32 __fastcall KSSSEQExecuteZ80CPU(void)
 {
-	execute(kssseq);
+    // スキップする
+    if (kssseq->skip_frames > kssseq->frames)
+    {
+        while (kssseq->skip_frames > kssseq->frames) {
+            execute(kssseq);
+        }
+    }
+    else
+    {
+        // 通常
+        execute(kssseq);
+    }
 	return 0;
 }
 
@@ -1098,6 +1115,37 @@ static NES_TERMINATE_HANDLER kssseq_terminate_handler[] = {
 	{ 0, },
 };
 
+
+Uint KSSRead(Uint A)
+{
+    if (!kssseq) return 0;
+
+	return kssseq->readmap[A >> 13][A];
+}
+
+
+void KSSSetSkipFrames(Uint frames)
+{
+    if (!kssseq) return;
+
+    kssseq->skip_frames = frames;
+}
+
+
+int KSSGetFrames(void)
+{
+    if (!kssseq) return 0;
+    return kssseq->frames;
+}
+
+
+float KSSGetFramePerSeconds(void)
+{
+    if (!kssseq) return 0;
+
+    return (kssseq->nrt_mode ? ((float)1000000 / 16384) : 60);
+}
+
 Uint32 KSSLoad(Uint8 *pData, Uint32 uSize)
 {
 	Uint32 ret;
@@ -1112,6 +1160,24 @@ Uint32 KSSLoad(Uint8 *pData, Uint32 uSize)
 		return ret;
 	}
 	kssseq = THIS_;
+    
+    nes_funcs_t funcs =
+    {
+        KSSRead,
+        NULL,
+        KSSSetSkipFrames,
+        KSSGetFrames,
+        KSSGetFramePerSeconds,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL // read linear memory
+    };
+    
+    NESSetHandlers(&funcs);
+    
+    
 	NESAudioHandlerInstall(kssseq_audio_handler);
 	NESVolumeHandlerInstall(kssseq_volume_handler);
 	NESResetHandlerInstall(kssseq_reset_handler);
