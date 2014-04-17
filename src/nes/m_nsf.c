@@ -263,9 +263,6 @@ static Uint NSFMapperInitialize(Uint8 *pData, Uint uSize)
 	return NESERR_NOERROR;
 }
 
-#define MASKSET(x) XMEMSET(x, 1, sizeof(x))
-#define ZEROSET(x) XMEMSET(x, 0, sizeof(x))
-
 static Uint NSFDeviceInitialize(void)
 {
 	NESResetHandlerInstall(nsf_mapper_reset_handler);
@@ -441,6 +438,8 @@ static void NSFSetReadLinearHandler()
 Uint NSFLoad(Uint8 *pData, Uint uSize)
 {
 	Uint ret = NESERR_NOERROR;
+    nsf_state.mode = MODE_UNKNOWN;
+    
 	while (1)
 	{
 		NESTerminate();
@@ -486,6 +485,7 @@ Uint NSFLoad(Uint8 *pData, Uint uSize)
 		else if (GetDwordLE(pData + 0) == GetDwordLEM("NESM") && pData[4] == 0x1A)
 		{
 			/* NSF */
+            nsf_state.mode = MODE_NSF;
 			ret = NSFPlayerSetInfo(pData, uSize);
             NESSetLinearHandler(NSFReadLinear);
 			if (ret) break;

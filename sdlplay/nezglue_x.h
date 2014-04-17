@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 
+#define MASKSET(x) XMEMSET(x, 1, sizeof(x))
+#define ZEROSET(x) XMEMSET(x, 0, sizeof(x))
+
 // direct access
 
 typedef struct
@@ -12,8 +15,16 @@ typedef struct
     int   vol;
 } S_STATE;
 
+#define MODE_UNKNOWN 0
+#define MODE_NSF 1
+#define MODE_KSS 2
+#define MODE_NRT 3
+
+
 typedef struct
 {
+    int mode;
+    
     int use_ch;
     
     int freq[32];
@@ -39,7 +50,8 @@ typedef struct
     S_STATE vrc7_state[12];    
 
     char opm_mask[8];
-    char opm2_mask[8];    
+    char opm2_mask[8];
+    char psg_mask[8];
     
     unsigned char psg_reg[0x100];
     unsigned char opm1_reg[0x100];

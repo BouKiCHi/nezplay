@@ -596,6 +596,8 @@ static void vsync_event(KMEVENT *event, KMEVENT_ITEM_ID curid, KSSSEQ *THIS_)
 {
 	vsync_setup(THIS_);
 	if (THIS_->ctx.regs8[REGID_HALTED]) play_setup(THIS_, THIS_->playaddr);
+    
+    THIS_->frames++;
 }
 
 static void ctc_event(KSSSEQ *THIS_,int i)
@@ -836,9 +838,6 @@ static void terminate(KSSSEQ *THIS_)
 	XFREE(THIS_);
 }
 
-#define MASKSET(x) XMEMSET(x, 1, sizeof(x))
-#define ZEROSET(x) XMEMSET(x, 0, sizeof(x))
-
 static Uint32 load(KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize)
 {
 	Uint32 i, headersize;
@@ -850,6 +849,7 @@ static Uint32 load(KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize)
 	THIS_->basefreq = BASECYCLES_3MHz;
     THIS_->nrt_mode = 0;
 
+    nsf_state.mode = MODE_KSS;
 
 	if (GetDwordLE(pData) == GetDwordLEM("KSCC"))
 	{
@@ -998,6 +998,11 @@ static Uint32 load(KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize)
 		}
 		THIS_->sndp[SND_PSG] = PSGSoundAlloc(PSG_TYPE_AY_3_8910);
 		if (!THIS_->sndp[SND_PSG]) return NESERR_SHORTOFMEMORY;
+        
+        MASKSET(nsf_state.psg_mask);
+        THIS_->sndp[SND_PSG]->setmask(NULL, 0, nsf_state.psg_mask);
+
+        
 		if (THIS_->extdevice & EXTDEVICE_MSXMUSIC)
 		{
 			THIS_->sndp[SND_MSXMUSIC] = OPLSoundAlloc(OPL_TYPE_MSXMUSIC);
@@ -1012,6 +1017,8 @@ static Uint32 load(KSSSEQ *THIS_, Uint8 *pData, Uint32 uSize)
 		if (THIS_->extdevice & EXTDEVICE_OPM)
 		{
             THIS_->nrt_mode = 1;
+            nsf_state.mode = MODE_NRT;
+
 			THIS_->basefreq = BASECYCLES_4MHz;
 			THIS_->sndp[SND_OPM] = OPMSoundAlloc();
 			if (!THIS_->sndp[SND_OPM]) return NESERR_SHORTOFMEMORY;
@@ -1176,7 +1183,6 @@ Uint32 KSSLoad(Uint8 *pData, Uint32 uSize)
     };
     
     NESSetHandlers(&funcs);
-    
     
 	NESAudioHandlerInstall(kssseq_audio_handler);
 	NESVolumeHandlerInstall(kssseq_volume_handler);

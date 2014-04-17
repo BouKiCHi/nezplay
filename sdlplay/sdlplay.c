@@ -6,8 +6,6 @@
 #include <getopt.h>
 #include <SDL.h>
 
-#undef main
-
 #include <signal.h>
 #define USE_SDL
 
@@ -617,6 +615,10 @@ int audio_main(int argc, char *argv[])
     return 0;
 }
 
+// disable SDLmain for win32 console app
+#ifdef _WIN32
+#undef main
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -625,7 +627,7 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
 	getch();
 #endif
-	
+
 	return ret;
 }
 

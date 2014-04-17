@@ -12,24 +12,6 @@
 
 #include <sys/stat.h> 
 
-
-typedef struct
-{
-    char file[NSF_FNMAX];
-    char id[4];
-    int  songno;
-    char title[512];
-    int  len;
-    
-    /* ignored */
-    int  loop;
-    int  fade;
-    int  loopcnt;
-    
-} PLAYLIST_TAG;
-
-
-
 NSF_STATE nsf_state;
 
 
@@ -87,6 +69,52 @@ void _sleep(int num)
 /****************
  Utility Methods
  *****************/
+
+void setMask(int dev, int ch, int mask)
+{
+    switch(dev)
+    {
+        case MASK_OPM1:
+            if (ch >= 8)
+                return;
+            nsf_state.opm_mask[ch] = mask;
+        break;
+        case MASK_OPM2:
+            if (ch >= 8)
+                return;
+            nsf_state.opm2_mask[ch] = mask;
+        break;
+        case MASK_PSG1:
+            if (ch >= 3)
+                return;
+            nsf_state.psg_mask[ch] = mask;
+        break;
+    }
+    
+}
+
+int getMask(int dev, int ch)
+{
+    switch(dev)
+    {
+        case MASK_OPM1:
+            if (ch >= 8)
+                return 0;
+            return nsf_state.opm_mask[ch];
+            break;
+        case MASK_OPM2:
+            if (ch >= 8)
+                return 0;
+            return nsf_state.opm2_mask[ch];
+            break;
+        case MASK_PSG1:
+            if (ch >= 3)
+                return 0;
+            return nsf_state.psg_mask[ch];
+            break;
+    }
+    return 0;
+}
 
 //o10
 static char *tblNote[]={
@@ -926,6 +954,11 @@ void GetExtDeviceStringNSF(char *dest)
     }
 }
 
+int GetModeNSF(void)
+{
+    return nsf_state.mode;
+}
+
 void ResetNSF(void)
 {
     nsf_reset = 1;
@@ -1239,6 +1272,8 @@ int LoadNSFBody(void)
     
     if (!nsf_data)
         return -1;
+    
+    nsf_state.mode = MODE_UNKNOWN;
     
     if ( NSFLoad ( nsf_data , nsf_size ) )
     {

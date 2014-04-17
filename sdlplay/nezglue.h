@@ -4,6 +4,21 @@
 #define NSF_MAXSIZE (8 * 1024 * 1024)
 #define NSF_FNMAX 4096
 
+typedef struct
+{
+    char file[NSF_FNMAX];
+    char id[4];
+    int  songno;
+    char title[512];
+    int  len;
+    
+    /* ignored */
+    int  loop;
+    int  fade;
+    int  loopcnt;
+    
+} PLAYLIST_TAG;
+
 /* Build Driver and Song on Memory */
 int LoadHeader(void *src, int len);
 int LoadDriver(void *src, int len);
@@ -62,6 +77,8 @@ int GetSongNoNSF(void);
 int GetTotalSecNSF(void);
 int GetExtDeviceNSF(void);
 void GetExtDeviceStringNSF(char *dest);
+int GetModeNSF(void);
+
 
 /* Playlist */
 int GetTotalSongsPLNSF(void);
@@ -112,7 +129,13 @@ void DebugSetBPNSF(int address);
 void DebugStepOverNSF(void);
 
 /* Util */
-void getNote(char *dest,int freq);
+#define MASK_OPM1 1
+#define MASK_OPM2 2
+#define MASK_PSG1 3
+
+void setMask(int dev, int ch, int mask);
+int  getMask(int dev, int ch);
+void getNote(char *dest, int freq);
 
 
 /* Setting */
