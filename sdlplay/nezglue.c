@@ -70,7 +70,7 @@ void _sleep(int num)
  Utility Methods
  *****************/
 
-void setMask(int dev, int ch, int mask)
+void setMaskNSF(int dev, int ch, int mask)
 {
     switch(dev)
     {
@@ -93,7 +93,7 @@ void setMask(int dev, int ch, int mask)
     
 }
 
-int getMask(int dev, int ch)
+int getMaskNSF(int dev, int ch)
 {
     switch(dev)
     {
@@ -126,7 +126,7 @@ static int tblFreq[]={
     23679 , 25087 , 26579 , 28160 , 29834 , 31608
 };
 
-void getNote(char *dest,int freq)
+void getNoteNSF(char *dest,int freq)
 {
     int oct = 10;
     
@@ -979,15 +979,27 @@ void RenderNSF(void *bufp, unsigned samples)
     NESAudioRender( bufp , samples );
 }
 
-void SeekNSF(unsigned frames)
+void SeekNSF(int frames)
 {
     int current = NESGetFrame();
+    
+    // if negative, seek is cancelled
+    if (frames < 0)
+    {
+        NESSeekFrame(current);
+        return;
+    }
     
     // reset if the frame is passed
     if (frames < current)
         ResetNSF();
     
     NESSeekFrame(frames);
+}
+
+void SeekSecNSF(int sec)
+{
+    SeekNSF(NESGetFramePerSeconds() * sec);
 }
 
 int GetFramesNSF(void)

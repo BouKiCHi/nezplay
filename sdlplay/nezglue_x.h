@@ -3,6 +3,18 @@
 
 #include <stdio.h>
 
+#ifdef __ANDROID__
+
+void output_log(const char *format, ...);
+
+#define OUTPUT_LOG(...) output_log(__VA_ARGS__)
+
+#else
+
+#define OUTPUT_LOG(...) {}
+
+#endif
+
 #define MASKSET(x) XMEMSET(x, 1, sizeof(x))
 #define ZEROSET(x) XMEMSET(x, 0, sizeof(x))
 

@@ -97,7 +97,9 @@ int GetLengthPLNSF(int pos);
 /* Rendering */
 void RenderNSF(void *bufp, unsigned samples);
 
-void SeekNSF(unsigned frames);
+/* Ctrl Position */
+void SeekSecNSF(int sec);
+void SeekNSF(int frames);
 int GetFramesNSF(void);
 int GetFrameCyclesNSF(void);
 float GetFramePerSecondsNSF(void);
@@ -133,9 +135,9 @@ void DebugStepOverNSF(void);
 #define MASK_OPM2 2
 #define MASK_PSG1 3
 
-void setMask(int dev, int ch, int mask);
-int  getMask(int dev, int ch);
-void getNote(char *dest, int freq);
+void setMaskNSF(int dev, int ch, int mask);
+int  getMaskNSF(int dev, int ch);
+void getNoteNSF(char *dest, int freq);
 
 
 /* Setting */

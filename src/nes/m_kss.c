@@ -706,7 +706,6 @@ static void reset(KSSSEQ *THIS_)
     THIS_->samples = 0;
     THIS_->total_samples = 0;
     THIS_->frames = 0;
-    THIS_->skip_frames = 0;
     
 	/* sound reset */
 	if (THIS_->extdevice & EXTDEVICE_SNG)
@@ -1167,6 +1166,10 @@ Uint32 KSSLoad(Uint8 *pData, Uint32 uSize)
 		return ret;
 	}
 	kssseq = THIS_;
+
+    // ロード時に初期化
+    THIS_->skip_frames = 0;
+
     
     nes_funcs_t funcs =
     {
