@@ -1144,12 +1144,35 @@ int KSSGetFrames(void)
     return kssseq->frames;
 }
 
-
 float KSSGetFramePerSeconds(void)
 {
     if (!kssseq) return 0;
 
     return (kssseq->nrt_mode ? ((float)1000000 / 16384) : 60);
+}
+
+#define REG_PACK(hi,lo) \
+ ((((int)kssseq->ctx.regs8[hi] & 0xff)<<8) | \
+   ((int)kssseq->ctx.regs8[lo] & 0xff))
+
+Uint KSSReadRegister(Uint A)
+{
+    switch (A)
+    {
+        case REG_Z80_PC:
+            return kssseq->ctx.pc;
+        case REG_Z80_AF:
+            return REG_PACK(REGID_A,REGID_F);
+        case REG_Z80_BC:
+            return REG_PACK(REGID_B,REGID_C);
+        case REG_Z80_DE:
+            return REG_PACK(REGID_D,REGID_E);
+        case REG_Z80_HL:
+            return REG_PACK(REGID_H,REGID_L);
+        case REG_Z80_SP:
+            return kssseq->ctx.sp;
+    }
+    return 0;
 }
 
 Uint32 KSSLoad(Uint8 *pData, Uint32 uSize)
@@ -1174,7 +1197,7 @@ Uint32 KSSLoad(Uint8 *pData, Uint32 uSize)
     nes_funcs_t funcs =
     {
         KSSRead,
-        NULL,
+        KSSReadRegister,
         KSSSetSkipFrames,
         KSSGetFrames,
         KSSGetFramePerSeconds,

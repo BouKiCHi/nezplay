@@ -29,6 +29,8 @@ int GetNRTDRVVer(void);
 
 /* Basic Methods */
 void SetNSFExecPath(const char *path);
+void SetDriverPathNSF(const char *path);
+void PathFromEnvNSF(void);
 
 int LoadNSF(const char *file, int freq, int ch, int vol, int songno);
 
@@ -107,17 +109,6 @@ float GetFramePerSecondsNSF(void);
 int GetAvgCyclesNSF(void);
 int GetMaxCyclesNSF(void);
 int GetMaxCyclesPositionNSF(void);
-
-/* Debug */
-enum REG_TAG
-{
-    REG_PC,
-    REG_A,
-    REG_X,
-    REG_Y,
-    REG_S,
-    REG_P
-};
 
 unsigned ReadLinearNSF(unsigned address);
 unsigned ReadMemoryNSF(unsigned address);

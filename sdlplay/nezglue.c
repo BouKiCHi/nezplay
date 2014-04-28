@@ -19,6 +19,7 @@ static PLAYLIST_TAG *nsf_playlist = NULL;
 
 static char nsf_filename[NSF_FNMAX];
 static char nsf_execpath[NSF_FNMAX] = "";
+static char nsf_drvpath[NSF_FNMAX] = "";
 
 static unsigned char *nsf_data = NULL;
 
@@ -377,18 +378,17 @@ int LoadHeader(void *src, int len)
 
 int GetNRTDRVVer(void)
 {
-    unsigned char v2id[] = { 0xc3,0xac,0x20 };
-
     // ドライバが読み込まれていない
     if (!stock[BIN_DRV].bin)
         return 0;
     
-    // 2013版(BASE $1800)
-    if (memcmp(stock[BIN_DRV].bin, v2id, 3) == 0)
-        return 2;
+    unsigned addr = ((unsigned)stock[BIN_DRV].bin[2]<<8) | stock[BIN_DRV].bin[1];
     
-    // 2011版(BASE $1300)
-    return 1;
+    
+    if (addr < 0x2000)
+        return 1;  // 2011版(BASE $1300)
+    
+    return 2; // 2013,2014版(BASE $1800)
 }
 
 #ifdef DEBUG
@@ -396,6 +396,7 @@ int GetNRTDRVVer(void)
 #else
 #define ERROR_FP_DBG(fptr, path) {}
 #endif
+
 
 //
 // read file to stock[BIN_???] with malloc
@@ -422,6 +423,15 @@ int LoadBinaryFromFile(BIN *bin, const char *basedir, const char *binfile)
         fp = fopen(PATH, "rb");
         ERROR_FP_DBG(fp, PATH);
     }
+    
+    /* ドライバディレクトリの中にあるファイルを読む */
+    if (!fp && nsf_drvpath[0])
+    {
+        MakePath(PATH, nsf_drvpath, binfile);
+        fp = fopen(PATH, "rb");
+        ERROR_FP_DBG(fp, PATH);
+    }
+
     
     if (!fp)
     {
@@ -591,7 +601,6 @@ int LoadNRD(const char *file)
     
     return 0;
 }
-
 
 /*****************
  M3U stuff
@@ -1325,6 +1334,32 @@ int LoadNSFData( int freq , int ch , int vol , int songno )
 void SetNSFExecPath(const char *path)
 {
 	strcpy(nsf_execpath, path);
+}
+
+// ドライバのパスをセットする
+void SetDriverPathNSF(const char *path)
+{
+    strcpy(nsf_drvpath, path);
+}
+
+// 環境変数からパスをセットする
+void PathFromEnvNSF(void)
+{
+    char temp[NSF_FNMAX];
+    char *dir = getenv("NP_DRVPATH");
+    if (dir)
+        SetDriverPathNSF(dir);
+    else
+    {
+        dir = getenv("HOME");
+        
+        if (dir)
+        {
+            strcpy(temp, dir);
+            strcat(temp,"/.DRIVER/");
+            SetDriverPathNSF(temp);
+        }
+    }
 }
 
 int LoadNSF(const char *file, int freq, int ch, int vol, int songno)

@@ -77,5 +77,23 @@ typedef struct
 
 extern NSF_STATE nsf_state;
 
+/* Debug */
+enum REG_TAG
+{
+    REG_PC,
+    REG_A,
+    REG_X,
+    REG_Y,
+    REG_S,
+    REG_P,
+    
+    REG_Z80_PC,
+    REG_Z80_AF,
+    REG_Z80_BC,
+    REG_Z80_DE,
+    REG_Z80_HL,
+    REG_Z80_SP
+};
+
 
 #endif

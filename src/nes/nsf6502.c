@@ -141,17 +141,17 @@ Uint NES6502ReadRegister(Uint A)
 {
     switch (A)
     {
-        case RDREG_PC:
+        case REG_PC:
             return work6502.PC;
-        case RDREG_A:
+        case REG_A:
             return work6502.A;
-        case RDREG_X:
+        case REG_X:
             return work6502.X;
-        case RDREG_Y:
+        case REG_Y:
             return work6502.Y;
-        case RDREG_S:
+        case REG_S:
             return work6502.S;
-        case RDREG_P:
+        case REG_P:
             return work6502.P;
     }
     return 0;

@@ -14,7 +14,7 @@
 int debug = 0;
 int verbose = 0;
 
-#define NEZ_VER "2014-04-15"
+#define NEZ_VER "2014-04-28"
 
 #define PCM_BLOCK 2048
 #define PCM_BYTE_PER_SAMPLE 2
@@ -399,6 +399,7 @@ void usage(void)
     " -n no     : Set song number\n"
     " -v vol    : Set volume\n"
     " -l n      : Set song length (n secs)\n"
+    " -q dir    : Set driver's path\n"
     "\n"
     " -o file   : Generate an Wave file(PCM)\n"
     " -p        : NULL PCM mode.\n"
@@ -424,6 +425,7 @@ int audio_main(int argc, char *argv[])
 {
     char nlg_path[NSF_FNMAX];
     
+    char *drvpath = NULL;
     char *nlgfile = NULL;
     char *pcmfile = NULL;
     char *logfile = NULL;
@@ -467,10 +469,13 @@ int audio_main(int argc, char *argv[])
     
     debug = 0;
     
-    while ((opt = getopt(argc, argv, "s:n:v:l:d:o:r:btxhpzw")) != -1)
+    while ((opt = getopt(argc, argv, "q:s:n:v:l:d:o:r:btxhpzw")) != -1)
     {
         switch (opt) 
         {
+            case 'q':
+                drvpath = optarg;
+                break;
             case 'b':
                 nlg_log = NLG_SAMEPATH;
                 nlgfile = NULL;
@@ -527,8 +532,6 @@ int audio_main(int argc, char *argv[])
         return 1;
     }
     
-    
-    
     pcm.on = 1;
     
     if (!n163mode)
@@ -536,19 +539,15 @@ int audio_main(int argc, char *argv[])
 
     SetStrictModeNSF(strictmode);
     
-/*
-    char buf[1024];
-    char *pcmdir = getenv( "HOME" );
-        
-    if (pcmdir)
+    if (drvpath)
     {
-        strcpy(buf,pcmdir);
-        strcat(buf,"/.mdxplay/");
+        SetDriverPathNSF(drvpath);
     }
     else
-        buf[0] = 0; 
-*/
-        
+    {
+        PathFromEnvNSF();
+    }
+    
     if (logfile)
         OpenLogNSF(logfile);
     

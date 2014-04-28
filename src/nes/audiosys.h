@@ -60,16 +60,6 @@ typedef void (*SEEKFUNC)(Uint A);
 typedef int (*INTFUNC)(void);
 typedef float (*FLOATFUNC)(void);
 
-enum RDREG_TAG
-{
-    RDREG_PC,
-    RDREG_A,
-    RDREG_X,
-    RDREG_Y,
-    RDREG_S,
-    RDREG_P
-};  
-
 typedef struct
 {
     RDFUNC rdmem;
