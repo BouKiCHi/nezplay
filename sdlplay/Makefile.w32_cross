@@ -1,0 +1,77 @@
+#
+# Nakefile for MinGW32
+#
+
+SFX = .exe
+
+#
+# Commands for building
+#
+ifeq ($(OS),Windows_NT)
+PREFIX=
+else
+PREFIX=i586-mingw32-
+endif
+
+CC = $(PREFIX)gcc
+CXX = $(PREFIX)g++
+STRIP=$(PREFIX)strip
+AR=$(PREFIX)ar
+
+
+#
+# Target name
+#
+ifdef DEBUG
+
+OBJDIR = obj-w32-debug
+TARGET = nezplay_dbg$(SFX)
+TARGET_S = nezplays_dbg$(SFX)
+
+else
+
+OBJDIR=obj-w32
+TARGET = nezplay$(SFX)
+TARGET_S = nezplays$(SFX)
+
+endif
+
+
+#
+# SDL stuff
+#
+
+SDL_CONFIG = sdl-config.w32
+
+SDL_LIBS := -mconsole 
+SDL_LIBS += `$(SDL_CONFIG) --libs | sed -e "s|-mwindows||g" | \
+ sed -e  "s|-lSDLmain||g" | sed -e  "s|-lmingw32||g"`
+SDL_LIBS += -static-libgcc
+
+
+#
+# static link for w32 is currently not supported.
+#
+SDL_SLIBS := $(SDL_LIBS)
+
+SDL_CFLAGS := `$(SDL_CONFIG) --cflags | sed -e "s/-Dmain=SDL_main//g"`
+
+
+SDL_A = $(MINGW_PATH)/lib/libSDL.a
+
+# SLIBS = `$(SDL_CONFIG) --static-libs \
+# | sed -e 's|-lSDL |$(SDL_A) |g' | sed -e 's|-mwindows||g'`
+
+SLIBS += -ldinput8
+
+#
+# switchs
+#
+all : dynamic
+	$(STRIP) $(TARGET)
+
+#
+# common
+#
+include Makefile.common
+
