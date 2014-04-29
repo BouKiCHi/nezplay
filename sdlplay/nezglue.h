@@ -4,6 +4,8 @@
 #define NSF_MAXSIZE (8 * 1024 * 1024)
 #define NSF_FNMAX 4096
 
+extern int nsf_verbose;
+
 typedef struct
 {
     char file[NSF_FNMAX];

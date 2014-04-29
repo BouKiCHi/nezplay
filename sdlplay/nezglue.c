@@ -14,6 +14,7 @@
 
 NSF_STATE nsf_state;
 
+int nsf_verbose = 0;
 
 static PLAYLIST_TAG *nsf_playlist = NULL;
 
@@ -46,9 +47,9 @@ typedef struct
 
 
 BIN stock[] = {
-    {NULL,0},
-    {NULL,0},
-    {NULL,0}
+    {NULL, 0},
+    {NULL, 0},
+    {NULL, 0}
 };
 
 #define BIN_HDR 0
@@ -91,7 +92,6 @@ void setMaskNSF(int dev, int ch, int mask)
             nsf_state.psg_mask[ch] = mask;
         break;
     }
-    
 }
 
 int getMaskNSF(int dev, int ch)
@@ -187,7 +187,8 @@ void getNoteNSF(char *dest,int freq)
  Filename Methods
  *****************/
 
-void ReplaceAfterSplit(char *dest,const char *src,const char *newstr,char split)
+// スプリット文字以降を新しい文字列にする
+void ReplaceAfterSplit(char *dest, const char *src, const char *newstr, char split)
 {
     char *pos;
     
@@ -200,12 +201,13 @@ void ReplaceAfterSplit(char *dest,const char *src,const char *newstr,char split)
     }
 }
 
-
+// パスのコピー時に拡張子を変更
 void CopyWithExt(char *dest, const char *file, const char *newext)
 {
     ReplaceAfterSplit(dest, file, newext,'.');
 }
 
+// パスのコピー時にファイル名を変更
 void CopyWithFilename(char *dest, const char *file, const char *newfile)
 {
     ReplaceAfterSplit(dest, file, newfile, PATH_SEP);
@@ -325,31 +327,80 @@ void VolumeKVF(char *key, char *value)
  File / Memory  Methods
 *****************/
 
+#define SEP_FILE   (1<<0)
+#define APPEND_DIR (1<<1)
 
-char *MakePath(char *dest, const char *dir, const char *filename)
+// 文字の追加
+void AppendChar(char *dest, int chr)
 {
-	const char *file_tail = strrchr(filename, PATH_SEP);
+    unsigned long len = strlen(dest);
+    
+    dest[len] = chr;
+    dest[len + 1] = 0;
+}
+
+// パスの作成
+char *MakePathEx(char *dest, const char *dir, const char *filename, int mode)
+{
+	const char *file_head = strrchr(filename, PATH_SEP);
     const char *tail = strrchr(dir, PATH_SEP);
 	
-	if (file_tail)
-		file_tail++;
+    // filenameからファイル名部分のみを取り出す
+	if ((mode & SEP_FILE) && file_head)
+		file_head++;
 	else
-		file_tail = filename;
-    
+		file_head = filename;
+
+    // ディレクトリに追加する
+    if ((mode & APPEND_DIR))
+    {
+        strcpy(dest, dir);
+        
+        // 最後尾のセパレータは無視
+        unsigned long len = strlen(dest);
+        
+        if (dest[len - 1] != PATH_SEP)
+        {
+            AppendChar(dest, PATH_SEP);
+        }
+        strcat(dest, file_head);
+        return dest;
+    }
+
+    // ディレクトリにセパレータがない場合はfilenameをパスとして扱う
     if (!tail)
     {
         strcpy(dest, filename);
+        return dest;
     }
     else
     {
         strcpy(dest, dir);
-	    strcpy(dest + ( tail - dir ) + 1, file_tail);
+	    strcpy(dest + (tail - dir) + 1, file_head);
     }
     
     return dest;
 }
 
+// パスの作成(filenameはファイル名のみを使う)
+char *MakePath(char *dest, const char *dir, const char *filename)
+{
+    return MakePathEx(dest, dir, filename, SEP_FILE);
+}
 
+
+// ファイルサイズの取得
+long GetFileSize( const char *file )
+{
+    struct stat st;
+    
+    if (stat(file, &st) < 0)
+        return -1;
+    
+    return (long)st.st_size;
+}
+
+// バイナリを内部にロードする
 int LoadBinary(BIN *bin,void *src,int len)
 {
     if (!bin->bin)
@@ -366,16 +417,25 @@ int LoadBinary(BIN *bin,void *src,int len)
     return len;
 }
 
+// ドライバをメモリにロードする
 int LoadDriver(void *src, int len)
 {
     return  LoadBinary(&stock[BIN_DRV], src, len);
 }
 
+// ヘッダをメモリにロードする
 int LoadHeader(void *src, int len)
 {
     return LoadBinary(&stock[BIN_HDR], src, len);
 }
 
+// 曲データをメモリにロードする
+int LoadSong(void *src, int len)
+{
+    return LoadBinary(&stock[BIN_SONG], src, len);
+}
+
+// NRTDRVバージョン確認
 int GetNRTDRVVer(void)
 {
     // ドライバが読み込まれていない
@@ -391,16 +451,11 @@ int GetNRTDRVVer(void)
     return 2; // 2013,2014版(BASE $1800)
 }
 
-#ifdef DEBUG
-#define ERROR_FP_DBG(fptr, path) if (!fptr)  printf("File open error : %s\n", path)
-#else
-#define ERROR_FP_DBG(fptr, path) {}
-#endif
+#define FP_DBG(fptr, path) \
+ if (nsf_verbose) { printf("PATH:%s ", path); \
+ if (fptr) printf("OK\n"); else printf("NG\n"); }
 
-
-//
-// read file to stock[BIN_???] with malloc
-//
+// ファイルをメモリを確保して読み出す
 int LoadBinaryFromFile(BIN *bin, const char *basedir, const char *binfile)
 {
     int size;
@@ -413,7 +468,7 @@ int LoadBinaryFromFile(BIN *bin, const char *basedir, const char *binfile)
     {
         MakePath(PATH, basedir, binfile);
         fp = fopen(PATH, "rb");
-        ERROR_FP_DBG(fp, PATH);
+        FP_DBG(fp, PATH);
     }
     
 	/* 実行ディレクトリの中にあるファイルを読む */
@@ -421,22 +476,23 @@ int LoadBinaryFromFile(BIN *bin, const char *basedir, const char *binfile)
     {
         MakePath(PATH, nsf_execpath, binfile);
         fp = fopen(PATH, "rb");
-        ERROR_FP_DBG(fp, PATH);
+        FP_DBG(fp, PATH);
     }
     
     /* ドライバディレクトリの中にあるファイルを読む */
     if (!fp && nsf_drvpath[0])
     {
-        MakePath(PATH, nsf_drvpath, binfile);
+        MakePathEx(PATH, nsf_drvpath, binfile, APPEND_DIR);
         fp = fopen(PATH, "rb");
-        ERROR_FP_DBG(fp, PATH);
+        FP_DBG(fp, PATH);
     }
-
     
+    /* カレントフォルダの中にあるファイルを読む */
     if (!fp)
     {
-        /* カレントフォルダのファイルを読む */
         fp = fopen(binfile, "rb");
+        
+        FP_DBG(fp, binfile);
         
         if (!fp)
         {
@@ -467,11 +523,9 @@ int LoadBinaryFromFile(BIN *bin, const char *basedir, const char *binfile)
     return size;
 }
 
-int LoadSong(void *src, int len)
-{
-    return LoadBinary(&stock[BIN_SONG], src, len);
-}
 
+#if 0
+//　メモリへのファイルの読み出し(デバッグ用)
 int LoadFileToMemory(const char *file, void *buf)
 {
     int size;
@@ -494,7 +548,7 @@ int LoadFileToMemory(const char *file, void *buf)
     return size;
 }
 
-
+// メモリの保存(デバッグ用)
 void SaveMemory(const char *file, void *buf, int len)
 {
     FILE *fp;
@@ -509,18 +563,9 @@ void SaveMemory(const char *file, void *buf, int len)
 
     return;
 }
+#endif
 
-long GetFileSize( const char *file )
-{
-    struct stat st;
-
-    if (stat(file, &st) < 0)
-        return -1;
-    
-    return (long)st.st_size;
-}
-
-
+// メモリ上で曲データとドライバを結合する
 int LoadNRDMemory(void)
 {
         int song_size = 0;
@@ -578,6 +623,7 @@ int LoadNRDMemory(void)
         return 0;
 }
 
+// NRDの読み出し
 int LoadNRD(const char *file)
 {
     // ドライバ本体
@@ -795,7 +841,6 @@ int LoadFileFromList(void)
 }
 
 
-
 int LoadFileNSF(const char *file)
 {
     FILE *fp = NULL;
@@ -869,8 +914,6 @@ void CloseNLG_NSF(void)
 {
     CloseNLG();
 }
-
-
 
 void OpenLogNSF(const char *filename)
 {
@@ -1064,7 +1107,6 @@ unsigned ReadMemoryNSF(unsigned address)
     return NESReadMemory(address);
 }
 
-
 unsigned ReadLinearNSF(unsigned address)
 {
     return NESReadLinearMemory(address);
@@ -1103,7 +1145,6 @@ void DebugStepOverNSF(void)
         NESDebugStep();
     }
 }
-
 
 void DebugFrameStepNSF(void)
 {
@@ -1279,7 +1320,7 @@ int GetTotalSecNSF( void )
  Load Methods
  *************/
 
-
+// 曲データの処理
 int LoadNSFBody(void)
 {
     if (nsf_m3u)
@@ -1290,7 +1331,7 @@ int LoadNSFBody(void)
             return -1;
         }
     }
-    
+
     if (!nsf_data)
         return -1;
     
@@ -1318,6 +1359,7 @@ int LoadNSFBody(void)
     return 0;
 }
 
+// メモリ上にある曲の読み出し
 int LoadNSFData( int freq , int ch , int vol , int songno )
 {
     // LoadVRC7Tone();
@@ -1352,16 +1394,20 @@ void PathFromEnvNSF(void)
     else
     {
         dir = getenv("HOME");
+        if (!dir)
+            dir = getenv("HOMEPATH");
         
         if (dir)
         {
             strcpy(temp, dir);
-            strcat(temp,"/.DRIVER/");
+            AppendChar(temp,PATH_SEP);
+            strcat(temp,".DRIVER");
             SetDriverPathNSF(temp);
         }
     }
 }
 
+// ファイルを読み出す
 int LoadNSF(const char *file, int freq, int ch, int vol, int songno)
 {
     char vol_file[NSF_FNMAX];
@@ -1388,6 +1434,7 @@ int LoadNSF(const char *file, int freq, int ch, int vol, int songno)
 
 }
 
+//　メモリ上の曲データを読み出す
 int LoadSongInMemory(int freq ,int ch ,int vol, int songno)
 {
     if (LoadNRDMemory())

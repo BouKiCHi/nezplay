@@ -1,0 +1,65 @@
+#
+# Makefile for nezplay
+#
+
+#
+# DEBUG mode
+#
+
+# DEBUG = 1
+
+ifndef DEBUG
+
+OBJDIR   = obj-x86-gcc
+TARGET   = nezplay
+TARGET_S = nezplay_s
+
+else
+
+OBJDIR   = obj-x86-gcc-dbg
+TARGET   = nezplay_dbg
+TARGET_S = nezplays_dbg
+
+endif
+
+
+STRIP = strip
+
+AR  = ar
+CC  = gcc
+CXX = g++
+
+CFLAGS = $(ARCHFLAGS) -g
+LFLAGS = $(ARCHFLAGS) -g
+
+ifndef DEBUG
+CFLAGS += -O3
+else
+CFLAGS += -DDEBUG
+endif
+
+SDL_CONFIG = sdl-config
+
+SDL_SLIBS  := `$(SDL_CONFIG) --static-libs`
+SDL_LIBS   := `$(SDL_CONFIG) --libs`
+SDL_CFLAGS := `$(SDL_CONFIG) --cflags`
+
+#
+#
+#
+
+all : $(TARGET)
+
+#
+#
+#
+include Makefile.common
+
+#
+# Options
+#
+
+install : $(TARGET)
+	cp $(TARGET) /usr/local/bin/
+
+

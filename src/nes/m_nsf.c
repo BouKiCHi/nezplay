@@ -435,6 +435,7 @@ static void NSFSetReadLinearHandler()
 {
 
 }
+
 Uint NSFLoad(Uint8 *pData, Uint uSize)
 {
 	Uint ret = NESERR_NOERROR;

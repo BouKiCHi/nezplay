@@ -12,9 +12,8 @@
 #include "nezglue.h"
 
 int debug = 0;
-int verbose = 0;
 
-#define NEZ_VER "2014-04-28"
+#define NEZ_VER "2014-04-29"
 
 #define PCM_BLOCK 2048
 #define PCM_BYTE_PER_SAMPLE 2
@@ -32,7 +31,7 @@ static struct pcm_struct
     short buffer[ PCM_BUFFER_LEN ];
 } pcm;
 
-#define PRNDBG(xx) if (verbose) printf(xx)
+#define PRNDBG(xx) if (nsf_verbose) printf(xx)
 
 #include "fade.h"
 
@@ -513,7 +512,7 @@ int audio_main(int argc, char *argv[])
                 strictmode = 1;
                 break;
             case 'w':
-                verbose = 1;
+                nsf_verbose = 1;
                 break;
             case 't':
                 // NESAudioSetDebug(1);

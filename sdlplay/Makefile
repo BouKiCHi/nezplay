@@ -4,11 +4,11 @@
 
 ifeq ($(OS),Windows_NT)
 
-include Makefile.w32
+include Makefile.w32_cross
 
 else
 
-include Makefile.base
+include Makefile.unix
 
 endif
 

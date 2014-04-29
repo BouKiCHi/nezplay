@@ -1,47 +1,8 @@
 #
-# Makefile for nezplay
+# common
 #
 
-# DEBUG = 1
-
 LIBNEZ = libnez.a
-
-ifndef DEBUG
-
-TARGET = nezplay
-TARGET_S = nezplay_s
-
-OBJDIR = obj-x86-gcc
-
-else
-
-OBJDIR = obj-x86-gcc-dbg
-TARGET = nezplay_dbg
-TARGET_S = nezplays_dbg
-
-endif
-
-
-STRIP = strip
-
-AR = ar
-CC = gcc
-CXX = g++
-CFLAGS = $(ARCHFLAGS) -g
-LFLAGS = $(ARCHFLAGS) -g
-
-ifndef DEBUG
-CFLAGS += -O3
-else
-CFLAGS += -DDEBUG
-endif
-
-SDL_CONFIG = sdl-config
-
-SDL_SLIBS := `$(SDL_CONFIG) --static-libs`
-SDL_LIBS := `$(SDL_CONFIG) --libs`
-SDL_CFLAGS := `$(SDL_CONFIG) --cflags`
-
 
 LIBS = $(SDL_LIBS)
 SLIBS = $(SDL_SLIBS)
@@ -111,7 +72,6 @@ MAINSRCFILES = $(MAINSRCS)
 #
 
 
-
 SRCS =  $(addprefix $(MAINDIR)/,$(MAINSRCS))
 
 LIBOBJS = $(addprefix $(OBJDIR)/,$(addsuffix .o,$(basename $(LIBSRCS))))
@@ -122,11 +82,7 @@ LIBNEZ := $(OBJDIR)/$(LIBNEZ)
 CFLAGS += $(addprefix -I$(SRCDIR)/,$(DIRS))
 CFLAGS += -I.
 
-
-all : $(TARGET) $(TARGET_S)
-
 dynamic : $(TARGET)
-
 
 static : $(TARGET_S)
 
@@ -163,19 +119,11 @@ $(TARGET) : $(OBJDIR) $(LIBNEZ) $(OBJS)
 	
 $(TARGET_S) : $(OBJDIR) $(LIBNEZ) $(OBJS)
 	$(CXX) $(LFLAGS) $(OBJS) $(LIBNEZ) -o $@ $(SLIBS)
-	
-#
-# Options
-#
-
-install : $(TARGET) $(TARGET_S)
-	cp $(TARGET) /usr/local/bin/
-	cp $(TARGET_S) /usr/local/bin/
-
 
 clean :
 	rm -rf $(OBJS)
 	rm -rf $(OBJDIR)
 	rm -f $(TARGET)
 	rm -f $(TARGET_S)
+
 
