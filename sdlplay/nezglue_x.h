@@ -2,6 +2,7 @@
 #define __NEZGLUE_X__H
 
 #include <stdio.h>
+#include "nlg.h"
 
 #ifdef __ANDROID__
 
@@ -71,8 +72,7 @@ typedef struct
     
     unsigned char  psg_adr;
     unsigned char  opm_adr[2];
-    FILE *nlg_fp;
-    
+    NLGCTX *nlgctx;
 } NSF_STATE;
 
 extern NSF_STATE nsf_state;

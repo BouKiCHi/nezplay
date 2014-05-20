@@ -1,27 +1,61 @@
 #ifndef __NLG_H__
 #define __NLG_H__
 
-int  OpenNLG(const char *file);
-int CreateNLG(const char *file);
+#include <stdio.h>
 
-void CloseNLG(void);
-int  ReadNLG(void);
-long  TellNLG(void);
-void SeekNLG(long);
+#ifdef _WIN32
+#define PATH_SEP '\\'
+#else
+#define PATH_SEP '/'
+#endif
 
-void WriteNLG_CMD(int cmd);
-void WriteNLG_CTC(int cmd,int ctc);
-void WriteNLG_Data(int cmd,int addr,int data);
+typedef struct {
+    FILE *file;
+    char title[80];
+    int  baseclk;
+    int  tick;
+    int  length;
+    int  loop_ptr;
+    int  version;
+    
+    int  ctc0;
+    int  ctc3;
+    int  irq_count;
+    
+    int mode;
+} NLGCTX;
 
-char *GetTitleNLG(void);
-int GetTickNLG(void);
-int GetLengthNLG(void);
-int GetLoopPtrNLG(void);
-int  GetBaseClkNLG(void);
+NLGCTX *OpenNLG(const char *file);
+void CloseNLG(NLGCTX *ctx);
 
-void SetCTC0_NLG(int value);
-void SetCTC3_NLG(int value);
+int  ReadNLG(NLGCTX *ctx);
+long  TellNLG(NLGCTX *ctx);
+void SeekNLG(NLGCTX *ctx, long pos);
 
+
+#ifndef NLG_READONLY
+
+void WriteHeaderNLG(NLGCTX *ctx);
+NLGCTX *CreateNLG(const char *file);
+void WriteNLG_IRQ(NLGCTX *ctx);
+void WriteNLG_CMD(NLGCTX *ctx, int cmd);
+void WriteNLG_CTC(NLGCTX *ctx, int cmd,int ctc);
+void WriteNLG_Data(NLGCTX *ctx,int cmd,int addr,int data);
+
+#endif
+
+char *GetTitleNLG(NLGCTX *ctx);
+int GetTickNLG(NLGCTX *ctx);
+int GetLengthNLG(NLGCTX *ctx);
+int GetLoopPtrNLG(NLGCTX *ctx);
+int  GetBaseClkNLG(NLGCTX *ctx);
+
+void SetCTC0_NLG(NLGCTX *ctx, int value);
+void SetCTC3_NLG(NLGCTX *ctx, int value);
+
+
+#define NLG_READ  0x00
+#define NLG_WRITE 0x01
 
 #define CMD_PSG  0x00
 #define CMD_OPM  0x01

@@ -472,7 +472,7 @@ static void iowrite_eventMSX(void *sp, Uint32 a, Uint32 v)
         else
         {
             nsf_state.psg_reg[nsf_state.psg_adr] = v;
-            WriteNLG_Data(CMD_PSG, nsf_state.psg_adr, v);
+            WriteNLG_Data(nsf_state.nlgctx, CMD_PSG, nsf_state.psg_adr, v);
         }
         
 		THIS_->sndp[SND_PSG]->write(THIS_->sndp[SND_PSG]->ctx, a, v);
@@ -497,7 +497,7 @@ static void iowrite_eventMSX(void *sp, Uint32 a, Uint32 v)
                 nsf_state.opm1_reg[nsf_state.opm_adr[chip]] = v;
             
 
-            WriteNLG_Data(cmd, nsf_state.opm_adr[chip], v);
+            WriteNLG_Data(nsf_state.nlgctx, cmd, nsf_state.opm_adr[chip], v);
         }
 
 		if (THIS_->sndp[SND_OPM])
@@ -527,10 +527,10 @@ static void iowrite_eventMSX(void *sp, Uint32 a, Uint32 v)
             if ((ch/4) == 1)
             {
                 if ((ch & 0x03) == 3)
-                    WriteNLG_CTC(CMD_CTC3, v);
+                    WriteNLG_CTC(nsf_state.nlgctx, CMD_CTC3, v);
             
                 if ((ch & 0x03) == 0)
-                    WriteNLG_CTC(CMD_CTC0, v);
+                    WriteNLG_CTC(nsf_state.nlgctx, CMD_CTC0, v);
             }
             
             // printf("CTC TC:%02X\n",v);
@@ -652,7 +652,7 @@ static void ctc_event(KSSSEQ *THIS_,int i)
 					
                     // CTC3 IRQ
                     if (brd == 1 && ch == 3)
-                        WriteNLG_CMD(CMD_IRQ);
+                        WriteNLG_IRQ(nsf_state.nlgctx);
                     
 					if (nes_logfile)
 						fprintf(nes_logfile,"CTC_IRQ:%02X:%02X\n",i / 4,ch);

@@ -13,7 +13,7 @@
 
 int debug = 0;
 
-#define NEZ_VER "2014-04-29"
+#define NEZ_VER "2014-05-19"
 
 #define PCM_BLOCK 2048
 #define PCM_BYTE_PER_SAMPLE 2
@@ -191,6 +191,12 @@ static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize)
     
 }
 
+static void audio_info(int sec, int len)
+{
+    if (! debug )
+        printf("\rTime : %02d:%02d / %02d:%02d",
+               sec / 60 , sec % 60 , len / 60 , len % 60 );
+}
 
 // audio_loop : 再生時にループする
 // freq : 再生周波数
@@ -219,6 +225,7 @@ static void audio_loop( int freq , int len )
         return;
     }
 
+    audio_info(sec, len);
     
     do
     {
@@ -262,9 +269,7 @@ static void audio_loop( int freq , int len )
         
         if ( sec != last_sec )
         {
-            if (! debug )
-                printf("\rTime : %02d:%02d / %02d:%02d",
-                sec / 60 , sec % 60 , len / 60 , len % 60 );
+            audio_info(sec, len);
 
             /* フェーダーを起動する */
             if ( sec >= ( len - 3 ) )
@@ -524,6 +529,9 @@ int audio_main(int argc, char *argv[])
                 return 1;
         }
     }
+    
+    if (rate < 8000)
+        rate = 8000;
     
     if (audio_init(rate))
     {

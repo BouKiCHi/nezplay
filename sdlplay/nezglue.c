@@ -12,6 +12,7 @@
 
 #include <sys/stat.h> 
 
+// freq,mask and flags
 NSF_STATE nsf_state;
 
 int nsf_verbose = 0;
@@ -38,6 +39,7 @@ static int nsf_m3u = 0;
 static int nsf_samprate = 22050;
 static int nsf_total_samples = 0;
 static int nsf_reset = 0;
+
 
 typedef struct
 {
@@ -390,7 +392,7 @@ char *MakePath(char *dest, const char *dir, const char *filename)
 
 
 // ファイルサイズの取得
-long GetFileSize( const char *file )
+long GetFileSize(const char *file)
 {
     struct stat st;
     
@@ -401,7 +403,7 @@ long GetFileSize( const char *file )
 }
 
 // バイナリを内部にロードする
-int LoadBinary(BIN *bin,void *src,int len)
+int LoadBinary(BIN *bin, void *src, int len)
 {
     if (!bin->bin)
     {
@@ -652,7 +654,7 @@ int LoadNRD(const char *file)
  M3U stuff
 ******************/
 
-void GetM3UInfo(const char *m3u_file, const char *m3u_line,PLAYLIST_TAG *tag)
+void GetM3UInfo(const char *m3u_file, const char *m3u_line, PLAYLIST_TAG *tag)
 {
     const char *start = NULL;
     char *end = NULL;
@@ -907,12 +909,15 @@ int LoadNSFBody(void);
 
 void CreateNLG_NSF(const char *filename)
 {
-    CreateNLG(filename);
+    nsf_state.nlgctx = CreateNLG(filename);
 }
 
 void CloseNLG_NSF(void)
 {
-    CloseNLG();
+    if (nsf_state.nlgctx)
+        CloseNLG(nsf_state.nlgctx);
+
+    nsf_state.nlgctx = NULL;
 }
 
 void OpenLogNSF(const char *filename)
@@ -1337,18 +1342,18 @@ int LoadNSFBody(void)
     
     nsf_state.mode = MODE_UNKNOWN;
     
-    if ( NSFLoad ( nsf_data , nsf_size ) )
+    if (NSFLoad(nsf_data, nsf_size))
     {
         FreeBufferNSF();
         return -1;
     }
     
-    SetFreqNSF( nsf_freq );
-    SetChannelNSF( nsf_ch );
+    SetFreqNSF(nsf_freq);
+    SetChannelNSF(nsf_ch);
     
     
-    if ( nsf_songno >= 0 )
-        SetSongNSF( nsf_songno );
+    if (nsf_songno >= 0)
+        SetSongNSF(nsf_songno);
     
     ResetNSF();
     
@@ -1360,14 +1365,14 @@ int LoadNSFBody(void)
 }
 
 // メモリ上にある曲の読み出し
-int LoadNSFData( int freq , int ch , int vol , int songno )
+int LoadNSFData(int freq, int ch, int vol, int songno)
 {
     // LoadVRC7Tone();
     
-    nsf_freq = freq;
-    nsf_ch = ch;
-    nsf_volume = vol;
-    nsf_songno = songno;
+    nsf_freq    = freq;
+    nsf_ch      = ch;
+    nsf_volume  = vol;
+    nsf_songno  = songno;
     
     return LoadNSFBody();
 }
