@@ -38,6 +38,10 @@ else
 CFLAGS += -DDEBUG
 endif
 
+#
+# SDL stuff
+#
+
 SDL_CONFIG = sdl-config
 
 SDL_SLIBS  := `$(SDL_CONFIG) --static-libs`

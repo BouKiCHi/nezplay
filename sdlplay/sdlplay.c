@@ -1,5 +1,6 @@
 //
 // sdlplay.c
+// for nezplay
 //
 
 #include <stdio.h>
@@ -13,22 +14,30 @@
 
 int debug = 0;
 
-#define NEZ_VER "2014-05-19"
+#define NEZ_VER "2014-07-03"
 
 #define PCM_BLOCK 2048
 #define PCM_BYTE_PER_SAMPLE 2
 #define PCM_CH  2
 #define PCM_NUM_BLOCKS 4
 
-#define PCM_BUFFER_LEN ( PCM_BLOCK * PCM_CH * PCM_NUM_BLOCKS )
+#define PCM_BLOCK_SIZE (PCM_BLOCK * PCM_CH)
+#define PCM_BLOCK_BYTES (PCM_BLOCK_SIZE * PCM_BYTE_PER_SAMPLE)
+#define PCM_BUFFER_LEN (PCM_BLOCK_SIZE * PCM_NUM_BLOCKS)
 
 static struct pcm_struct
 {
     int on;
+    int stop;
+
     int write;
     int play;
-    int stop;
-    short buffer[ PCM_BUFFER_LEN ];
+    
+    int count;
+    
+    int file_mode;
+    
+    short buffer[PCM_BUFFER_LEN];
 } pcm;
 
 #define PRNDBG(xx) if (nsf_verbose) printf(xx)
@@ -45,17 +54,24 @@ static void audio_callback( void *param , Uint8 *data , int len )
     
     short *audio_buffer = (short *)data;
 
-    if ( !pcm.on )
+    if (!pcm.on)
     {
         memset( data , 0 , len );
         return;
     }
     
-    for( i = 0; i < len / 2; i++ )
+    for(i = 0; i < len / 2; i++)
     {
-        audio_buffer[ i ] = pcm.buffer[ pcm.play++ ];
-        if ( pcm.play >= PCM_BUFFER_LEN )
-                pcm.play = 0;
+        if (pcm.count > 0)
+        {
+            audio_buffer[i] = pcm.buffer[pcm.play++];
+            pcm.count--;
+        }
+        else
+            audio_buffer[i] = 0;
+        
+        if (pcm.play >= PCM_BUFFER_LEN)
+            pcm.play = 0;
     }
 }
 
@@ -64,16 +80,18 @@ static int audio_sdl_init()
 
 //  if ( SDL_Init( SDL_INIT_VIDEO | SDL_INIT_AUDIO ) )
     
-    if ( SDL_Init( SDL_INIT_AUDIO ) )
+    if (SDL_Init(SDL_INIT_AUDIO))
     {
         printf("Failed to Initialize!!\n");
         return 1;
     }
+    
+    memset(&pcm, 0, sizeof(pcm));
 
     return 0;
 }
 
-static int audio_init( int freq )
+static int audio_init(int freq)
 {
     SDL_AudioSpec af;
     
@@ -92,16 +110,15 @@ static int audio_init( int freq )
         return 1;
     }
     
-    memset( &pcm , 0 , sizeof( pcm ) );
     
-    SDL_PauseAudio( 0 );
+    SDL_PauseAudio(0);
     
     PRNDBG("Start Audio\n");
     
     return 0;
 }
 
-static void audio_free( void )
+static void audio_free(void)
 {
     PRNDBG("Close Audio\n");
     SDL_CloseAudio();
@@ -111,13 +128,13 @@ static void audio_free( void )
     
 }
 
-static int audio_poll_event( void )
+static int audio_poll_event(void)
 {
     SDL_Event evt;
     
-    while ( SDL_PollEvent( &evt ) )
+    while(SDL_PollEvent(&evt))
     {
-        switch ( evt.type ) 
+        switch(evt.type)
         {
             case SDL_QUIT:
                 return -1;
@@ -128,7 +145,7 @@ static int audio_poll_event( void )
     return 0;
 }
 
-static void audio_sig_handle( int sig )
+static void audio_sig_handle(int sig)
 {
     pcm.stop = 1;
 }
@@ -158,14 +175,15 @@ INLINE void write_word(byte *p,word v)
     p[1] = (v>>8) & 0xff;
 }
 
+#define WAV_CH 2
+#define WAV_BPS 2
+
 // audio_write_wav_header : ヘッダを出力する
 // freq : 再生周波数
 // pcm_bytesize : データの長さ
 static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize)
 {
-    unsigned char hdr[128];
-    int ch = PCM_CH;
-    int bytes_per_sample = PCM_BYTE_PER_SAMPLE;
+    unsigned char hdr[0x80];
     
     if (!fp)
         return;
@@ -175,11 +193,11 @@ static void audio_write_wav_header(FILE *fp, long freq, long pcm_bytesize)
     memcpy(hdr + 8,"WAVEfmt ", 8);
     write_dword(hdr + 16, 16); // chunk length
     write_word(hdr + 20, 01); // pcm id
-    write_word(hdr + 22, ch); // ch
+    write_word(hdr + 22, WAV_CH); // ch
     write_dword(hdr + 24, freq); // freq
-    write_dword(hdr + 28, freq * ch * bytes_per_sample); // bytes per sec
-    write_word(hdr + 32, ch * bytes_per_sample); // bytes per frame
-    write_word(hdr + 34, bytes_per_sample * 8 ); // bits
+    write_dword(hdr + 28, freq * WAV_CH * WAV_BPS); // bytes per sec
+    write_word(hdr + 32, WAV_CH * WAV_BPS); // bytes per frame
+    write_word(hdr + 34, WAV_BPS * 8 ); // bits
 
     memcpy(hdr + 36, "data",4);
     write_dword(hdr + 40, pcm_bytesize); // pcm size
@@ -196,6 +214,8 @@ static void audio_info(int sec, int len)
     if (! debug )
         printf("\rTime : %02d:%02d / %02d:%02d",
                sec / 60 , sec % 60 , len / 60 , len % 60 );
+    
+    fflush(stdout);
 }
 
 // audio_loop : 再生時にループする
@@ -204,7 +224,6 @@ static void audio_info(int sec, int len)
 static void audio_loop( int freq , int len )
 {
     int sec;
-    int last_sec;
     
     int frames;
     int total_frames;
@@ -212,8 +231,6 @@ static void audio_loop( int freq , int len )
     // len = 5;
 
     fade_init();
-    
-    last_sec = -1;
     
     sec = 
     frames =
@@ -225,69 +242,59 @@ static void audio_loop( int freq , int len )
         return;
     }
 
-    audio_info(sec, len);
+    if (!debug)
+        audio_info(sec, len);
     
     do
     {
         // delay until next block is writable
         
-        while( pcm.write >= pcm.play &&
-               pcm.write <  pcm.play + ( PCM_BLOCK * PCM_CH ) )
+        while(pcm.count >= (PCM_BUFFER_LEN - PCM_BLOCK_SIZE))
         {
-            if ( audio_poll_event() < 0 )
+            if (audio_poll_event() < 0)
             {
-                SDL_PauseAudio( 1 );
+                SDL_PauseAudio(1);
                 return;
             }
             
-            SDL_Delay( 1 );
+            SDL_Delay(1);
         }
         
-        // pcm.buffer + pcm.write 
-        // datalen = PCM_BLOCK * PCM_CH * PCM_BYTE_PER_SAMPLE
-        RenderNSF ( pcm.buffer + pcm.write , PCM_BLOCK );
+        RenderNSF(pcm.buffer + pcm.write, PCM_BLOCK);
                 
-        if ( fade_is_running () )
-            fade_stereo ( pcm.buffer + pcm.write , PCM_BLOCK );
+        if (fade_is_running())
+            fade_stereo(pcm.buffer + pcm.write, PCM_BLOCK);
 
-        // pcm.write += PCM_BLOCK;
+        pcm.write += PCM_BLOCK_SIZE;
+        pcm.count += PCM_BLOCK_SIZE;
         
-        pcm.write += (PCM_BLOCK * PCM_CH);
-        
-        if ( pcm.write >= PCM_BUFFER_LEN )
+        if (pcm.write >= PCM_BUFFER_LEN)
                 pcm.write = 0;
         
         frames += PCM_BLOCK;
         total_frames += PCM_BLOCK;
         
         /* 今までのフレーム数が一秒以上なら秒数カウントを進める */
-        while ( frames >= freq )
+        while(frames >= freq)
         {
             frames -= freq;
             sec++;
-        }
-        
-        if ( sec != last_sec )
-        {
-            audio_info(sec, len);
-
+            
+            if (!debug)
+                audio_info(sec, len);
+            
             /* フェーダーを起動する */
             if ( sec >= ( len - 3 ) )
-            { 
-                if ( ! fade_is_running () )
-                    fade_start( freq , 1 );
+            {
+                if (!fade_is_running())
+                    fade_start(freq, 1);
             }
-            
-            last_sec = sec;
         }
-        
-
-        fflush( stdout );           
 
 
-    }while( sec < len && ! pcm.stop );
+    }while(sec < len && !pcm.stop );
     
-    if ( !debug )
+    if (!debug)
         printf("\n");
     
     PRNDBG("Stopping...\n");
@@ -307,22 +314,18 @@ static void audio_loop_file(const char *file, int freq , int len )
     FILE *fp = NULL;
 
     int sec;
-    int last_sec;
     
     int frames;
     int total_frames;
 
-    short pcm_buffer[PCM_BLOCK * PCM_CH * PCM_BYTE_PER_SAMPLE];
+    short pcm_buffer[PCM_BLOCK_SIZE];
 
     // len = 5;
 
     fade_init();
     
-    last_sec = -1;
     
-    sec = 
-    frames =
-    total_frames = 0;
+    sec = frames = total_frames = 0;
     
     
     if (file)
@@ -330,27 +333,25 @@ static void audio_loop_file(const char *file, int freq , int len )
     
     if (file && fp == NULL)
     {
-        printf("Can't write a PCM file!");
+        printf("Can't write a PCM file!\n");
         return;
     }
     
     audio_write_wav_header(fp, freq, 0);
-        
+    
+    if (!debug)
+        audio_info(sec, len);
+    
     do
     {
-            
-        // pcm.buffer + pcm.write 
-        // datalen = PCM_BLOCK * PCM_CH * PCM_BYTE_PER_SAMPLE
         RenderNSF(pcm_buffer, PCM_BLOCK);
                 
         if (fade_is_running())
             fade_stereo (pcm_buffer, PCM_BLOCK);
         
         if (fp)
-            fwrite(pcm_buffer,PCM_BLOCK * PCM_CH * PCM_BYTE_PER_SAMPLE,1,fp);
+            fwrite(pcm_buffer, PCM_BLOCK_BYTES, 1, fp);
 
-        // pcm.write += PCM_BLOCK;
-                
         frames += PCM_BLOCK;
         total_frames += PCM_BLOCK;
         
@@ -359,25 +360,18 @@ static void audio_loop_file(const char *file, int freq , int len )
         {
             frames -= freq;
             sec++;
-        }
-        
-        if (sec != last_sec)
-        {
-            if (! debug )
-                printf("\rTime : %02d:%02d / %02d:%02d",
-                sec / 60 , sec % 60 , len / 60 , len % 60 );
-
-            /* フェーダーを起動する */
-            if (sec >= ( len - 3 ))
-            { 
-                if ( ! fade_is_running () )
-                    fade_start( freq , 1 );
-            }
             
-            last_sec = sec;
+            if (!debug)
+                audio_info(sec, len);
+            
+            /* フェーダーを起動する */
+            if (sec >= (len - 3))
+            {
+                if (!fade_is_running())
+                    fade_start(freq, 1);
+            }
         }
         
-        fflush( stdout );           
 
 
     }while( sec < len && !pcm.stop );
@@ -388,7 +382,7 @@ static void audio_loop_file(const char *file, int freq , int len )
     if (fp)
         fclose(fp);
     
-    if ( !debug )
+    if (!debug)
         printf("\n");
 }
 
@@ -422,8 +416,24 @@ void usage(void)
     );
 }
 
+
 #define NLG_NORMAL 1
 #define NLG_SAMEPATH 2
+
+#define NLG_EXT ".NLG"
+
+int audio_check_nlgmode(const char *file)
+{
+    char *p = strrchr(file, '.');
+    if (!p)
+        return 0;
+    
+    if (strcasecmp(p,NLG_EXT) == 0)
+        return 1;
+    
+    return 0;
+}
+
 
 int audio_main(int argc, char *argv[])
 {
@@ -561,17 +571,19 @@ int audio_main(int argc, char *argv[])
     // ファイルの数だけ処理
     for(;optind < argc; optind++)
     {
+        char *playfile = argv[optind];
+        
         if (nlg_log)
         {
             if (nlg_log == NLG_SAMEPATH)
             {
-                strcpy(nlg_path, argv[optind]);
+                strcpy(nlg_path, playfile);
                 char *p = strrchr(nlg_path, '.');
                 
                 if (p)
-                    strcpy(p,".NLG");
+                    strcpy(p,NLG_EXT);
                 else
-                    strcat(nlg_path,".NLG");
+                    strcat(nlg_path,NLG_EXT);
                 
                 nlgfile = nlg_path;
             }
@@ -580,11 +592,9 @@ int audio_main(int argc, char *argv[])
             CreateNLG_NSF(nlgfile);
         }
         
-
-        
-        if (LoadNSF(argv[optind], rate, 2, vol, songno))
+        if (LoadNSF(playfile, rate, 2, vol, songno))
         {
-            printf("File open error : %s\n", argv[optind]);
+            printf("File open error : %s\n", playfile);
             CloseLogNSF();
             CloseNLG_NSF();
             

@@ -57,10 +57,11 @@ SDL_SLIBS := $(SDL_LIBS)
 SDL_CFLAGS := `$(SDL_CONFIG) --cflags | sed -e "s/-Dmain=SDL_main//g"`
 
 
-SDL_A = $(MINGW_PATH)/lib/libSDL.a
-
+#
+# SDL_A = $(MINGW_PATH)/lib/libSDL.a
 # SLIBS = `$(SDL_CONFIG) --static-libs \
 # | sed -e 's|-lSDL |$(SDL_A) |g' | sed -e 's|-mwindows||g'`
+#
 
 SLIBS += -ldinput8
 

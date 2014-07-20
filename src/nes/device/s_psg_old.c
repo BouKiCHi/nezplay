@@ -7,21 +7,11 @@
 
 #include <stdio.h>
 
-#define DEVICE PSG
-#include "assist.h"
-
-
 #define DCFIX 0/*8*/
 #define ANAEX 0
 #define CPS_SHIFT 18
 #define CPS_ENVSHIFT 12
 #define LOG_KEYOFF (31 << (LOG_BITS + 1))
-
-#define RENDERS 7
-#define NOISE_RENDERS 3
-
-#define VOLUME_3 1
-#define PSG_VOL 1
 
 typedef struct {
 #if DCFIX
@@ -38,8 +28,6 @@ typedef struct {
 	Uint8 adr;
 	Uint8 mute;
 	Uint8 key;
-	Uint32 count;
-	Int32 output;
 } PSG_SQUARE;
 
 typedef struct {
@@ -47,19 +35,12 @@ typedef struct {
 	Uint32 cycles;
 	Uint32 noiserng;
 	Uint8 regs[1];
-	Uint8 count;
-	Uint32 output;
 } PSG_NOISE;
-
-typedef struct {
-	Int32 cps;
-	Int32 cycles;
-} MSX_DA;
 
 typedef struct {
 	Uint32 cps;
 	Uint32 cycles;
-	const Int8 *adr;
+	Int8 *adr;
 	Uint8 regs[3];
 	Uint8 adrmask;
 } PSG_ENVELOPE;
@@ -70,28 +51,26 @@ typedef struct {
 	PSG_SQUARE square[3];
 	PSG_ENVELOPE envelope;
 	PSG_NOISE noise;
-	MSX_DA da;
 	struct {
 		Int32 mastervolume;
 		Uint32 davolume;
 		Uint32 envout;
 		Uint8 daenable;
 		Uint8 regs[1];
-		Uint32 rngout;
+		Uint8 rngout;
 		Uint8 adr;
 	} common;
 	Uint8 type;
-	Uint8 regs[0x10];
 } PSGSOUND;
 
-const static Int8 env_pulse[] = 
+static Int8 env_pulse[] = 
 {
 	0x1F,+02,0x1E,+02,0x1D,+02,0x1C,+02,0x1B,+02,0x1A,+02,0x19,+02,0x18,+02,
 	0x17,+02,0x16,+02,0x15,+02,0x14,+02,0x13,+02,0x12,+02,0x11,+02,0x10,+02,
 	0x0F,+02,0x0E,+02,0x0D,+02,0x0C,+02,0x0B,+02,0x0A,+02,0x09,+02,0x08,+02,
 	0x07,+02,0x06,+02,0x05,+02,0x04,+02,0x03,+02,0x02,+02,0x01,+02,0x00,+00,
 };
-const static Int8 env_pulse_hold[] = 
+static Int8 env_pulse_hold[] = 
 {
 	0x1F,+02,0x1E,+02,0x1D,+02,0x1C,+02,0x1B,+02,0x1A,+02,0x19,+02,0x18,+02,
 	0x17,+02,0x16,+02,0x15,+02,0x14,+02,0x13,+02,0x12,+02,0x11,+02,0x10,+02,
@@ -99,14 +78,14 @@ const static Int8 env_pulse_hold[] =
 	0x07,+02,0x06,+02,0x05,+02,0x04,+02,0x03,+02,0x02,+02,0x01,+02,0x00,+02,
 	0x1F,+00,
 };
-const static Int8 env_saw[] = 
+static Int8 env_saw[] = 
 {
 	0x1F,+02,0x1E,+02,0x1D,+02,0x1C,+02,0x1B,+02,0x1A,+02,0x19,+02,0x18,+02,
 	0x17,+02,0x16,+02,0x15,+02,0x14,+02,0x13,+02,0x12,+02,0x11,+02,0x10,+02,
 	0x0F,+02,0x0E,+02,0x0D,+02,0x0C,+02,0x0B,+02,0x0A,+02,0x09,+02,0x08,+02,
 	0x07,+02,0x06,+02,0x05,+02,0x04,+02,0x03,+02,0x02,+02,0x01,+02,0x00,-62,
 };
-const static Int8 env_tri[] = 
+static Int8 env_tri[] = 
 {
 	0x1F,+02,0x1E,+02,0x1D,+02,0x1C,+02,0x1B,+02,0x1A,+02,0x19,+02,0x18,+02,
 	0x17,+02,0x16,+02,0x15,+02,0x14,+02,0x13,+02,0x12,+02,0x11,+02,0x10,+02,
@@ -117,14 +96,14 @@ const static Int8 env_tri[] =
 	0x10,+02,0x11,+02,0x12,+02,0x13,+02,0x14,+02,0x15,+02,0x16,+02,0x17,+02,
 	0x18,+02,0x19,+02,0x1A,+02,0x1B,+02,0x1C,+02,0x1D,+02,0x1E,+02,0x1F,-126,
 };
-const static Int8 env_xpulse[] = 
+static Int8 env_xpulse[] = 
 {
 	0x00,+02,0x01,+02,0x02,+02,0x03,+02,0x04,+02,0x05,+02,0x06,+02,0x07,+02,
 	0x08,+02,0x09,+02,0x0A,+02,0x0B,+02,0x0C,+02,0x0D,+02,0x0E,+02,0x0F,+02,
 	0x10,+02,0x11,+02,0x12,+02,0x13,+02,0x14,+02,0x15,+02,0x16,+02,0x17,+02,
 	0x18,+02,0x19,+02,0x1A,+02,0x1B,+02,0x1C,+02,0x1D,+02,0x1E,+02,0x1F,+00,
 };
-const static Int8 env_xpulse_hold[] = 
+static Int8 env_xpulse_hold[] = 
 {
 	0x00,+02,0x01,+02,0x02,+02,0x03,+02,0x04,+02,0x05,+02,0x06,+02,0x07,+02,
 	0x08,+02,0x09,+02,0x0A,+02,0x0B,+02,0x0C,+02,0x0D,+02,0x0E,+02,0x0F,+02,
@@ -132,7 +111,7 @@ const static Int8 env_xpulse_hold[] =
 	0x18,+02,0x19,+02,0x1A,+02,0x1B,+02,0x1C,+02,0x1D,+02,0x1E,+02,0x1F,+02,
 	0x00,+00,
 };
-const static Int8 env_xsaw[] = 
+static Int8 env_xsaw[] = 
 {
 	0x00,+02,0x01,+02,0x02,+02,0x03,+02,0x04,+02,0x05,+02,0x06,+02,0x07,+02,
 	0x08,+02,0x09,+02,0x0A,+02,0x0B,+02,0x0C,+02,0x0D,+02,0x0E,+02,0x0F,+02,
@@ -140,7 +119,7 @@ const static Int8 env_xsaw[] =
 	0x18,+02,0x19,+02,0x1A,+02,0x1B,+02,0x1C,+02,0x1D,+02,0x1E,+02,0x1F,-62,
 };
 
-const static Int8 env_xtri[] = 
+static Int8 env_xtri[] = 
 {
 	0x00,+02,0x01,+02,0x02,+02,0x03,+02,0x04,+02,0x05,+02,0x06,+02,0x07,+02,
 	0x08,+02,0x09,+02,0x0A,+02,0x0B,+02,0x0C,+02,0x0D,+02,0x0E,+02,0x0F,+02,
@@ -153,7 +132,7 @@ const static Int8 env_xtri[] =
 };
 
 #if 1
-const static Int8 *(env_table[16]) =
+static Int8 *(env_table[16]) =
 {
 	env_pulse,       env_pulse,       env_pulse,       env_pulse,
 	env_xpulse_hold, env_xpulse_hold, env_xpulse_hold, env_xpulse_hold,
@@ -161,7 +140,7 @@ const static Int8 *(env_table[16]) =
 	env_xsaw,        env_xpulse,      env_xtri,        env_xpulse_hold,
 };
 #else
-const static Int8 *(env_table[16]) =
+static Int8 *(env_table[16]) =
 {
 	env_pulse,	env_pulse,	env_pulse,	env_pulse,
 	env_xpulse,	env_xpulse,	env_xpulse,	env_xpulse,
@@ -170,158 +149,92 @@ const static Int8 *(env_table[16]) =
 };
 #endif
 
-
-const static Uint32 voltbl[2][32] = {
-//0 : PSG_TYPE_AY_3_8910 : PSG
-#define V(a) ((((a * 5 * (1 << (LOG_BITS - 1))) / 13)+((0 * (1 << (LOG_BITS - 1))) / 3)) << 1)
-	LOG_KEYOFF, V(0x1e), V(0x1d),V(0x1c),V(0x1b), V(0x1a), V(0x19), V(0x18),
-	   V(0x17), V(0x16), V(0x15),V(0x14),V(0x13), V(0x12), V(0x11), V(0x10),
-	   V(0x0f), V(0x0e), V(0x0d),V(0x0c),V(0x0b), V(0x0a), V(0x09), V(0x08),
-	   V(0x07), V(0x06), V(0x05),V(0x04),V(0x03), V(0x02), V(0x01), V(0x00),
-//1 : PSG_TYPE_YM2149 : SSG (YM2149などの、YAMAHAのPSG互換系)
-#undef V
-#define V(a) (((a * (1 << (LOG_BITS - 1))) / 2) << 1)
-	LOG_KEYOFF, V(0x1e), V(0x1d),V(0x1c),V(0x1b), V(0x1a), V(0x19), V(0x18),
-	   V(0x17), V(0x16), V(0x15),V(0x14),V(0x13), V(0x12), V(0x11), V(0x10),
-	   V(0x0f), V(0x0e), V(0x0d),V(0x0c),V(0x0b), V(0x0a), V(0x09), V(0x08),
-	   V(0x07), V(0x06), V(0x05),V(0x04),V(0x03), V(0x02), V(0x01), V(0x00),
-
-};
-#undef V
-
-__inline static Uint32 PSGSoundNoiseStep(PSGSOUND *sndp)
+__inline static Uint32 PSGSoundNoiseStep(void *sp)
 {
 	Uint32 spd;
-	Int32 outputbuf=0,count=0;
+	PSGSOUND *sndp = sp;
 
 	spd = sndp->noise.regs[0] & 0x1F;
-	spd = spd ? (spd << CPS_SHIFT) : (1 << (CPS_SHIFT-2));
+	spd = spd ? (spd << CPS_SHIFT) : (1 << CPS_SHIFT);
 
-	sndp->noise.cycles += sndp->noise.cps << NOISE_RENDERS;
-	sndp->noise.output = (sndp->noise.noiserng >> 16) & 1;
+	sndp->noise.cycles += sndp->noise.cps;
 	while (sndp->noise.cycles >= spd)
 	{
-		//outputbuf += sndp->noise.output;
-		//count++;
-
-		sndp->noise.count++;
 		sndp->noise.cycles -= spd;
-
-		if(sndp->noise.count >= 1<<NOISE_RENDERS){
-			sndp->noise.count = 0;
-			sndp->noise.noiserng += sndp->noise.noiserng + (1 & ((sndp->noise.noiserng >> 13) ^ (sndp->noise.noiserng >> 16)));
-			sndp->noise.output = (sndp->noise.noiserng >> 16) & 1;
-		}
+		sndp->noise.noiserng += sndp->noise.noiserng + (1 & ((sndp->noise.noiserng >> 14) ^ (sndp->noise.noiserng >> 16)));
 	}
-	outputbuf += sndp->noise.output;
-	count++;
-	return (outputbuf << 8) / count;
+	return (sndp->noise.noiserng >> 16) & 1;
 }
 
-__inline static Int32 PSGSoundEnvelopeStep(PSGSOUND *sndp)
+__inline static Int32 PSGSoundEnvelopeStep(void *sp)
 {
 	Uint32 spd;
+	PSGSOUND *sndp = sp;
+
 	spd = (sndp->envelope.regs[1] << 8) + sndp->envelope.regs[0];
 
-	if (!spd) spd = 1; // 0の時は1と同じ動作になる 
-
-	spd <<= CPS_ENVSHIFT;
-	sndp->envelope.cycles += sndp->envelope.cps;
-	while (sndp->envelope.cycles >= spd)
+	if (spd)
 	{
-		sndp->envelope.cycles -= spd;
-		sndp->envelope.adr += sndp->envelope.adr[1];
+		spd <<= CPS_ENVSHIFT;
+		sndp->envelope.cycles += sndp->envelope.cps;
+		while (sndp->envelope.cycles >= spd)
+		{
+			sndp->envelope.cycles -= spd;
+			sndp->envelope.adr += sndp->envelope.adr[1];
+		}
 	}
 
 	if (sndp->envelope.adr[0] & sndp->envelope.adrmask)
 	{
-#ifdef VOLUME_3
-		return LogToLin(sndp->logtbl, voltbl[sndp->type][sndp->envelope.adr[0] & sndp->envelope.adrmask] + sndp->common.mastervolume, LOG_LIN_BITS - 21);
-#else
 		return LogToLin(sndp->logtbl, ((sndp->envelope.adrmask - (sndp->envelope.adr[0] & sndp->envelope.adrmask)) << (LOG_BITS - 2 + 1)) + sndp->common.mastervolume, LOG_LIN_BITS - 21);
-#endif
 	}
 	else
 		return 0;
 }
 
-__inline static Uint32 PSGSoundSquareSub(PSGSOUND *sndp, PSG_SQUARE *chp)
+__inline static Uint32 PSGSoundSquareSub(void *sp, PSG_SQUARE *chp)
 {
 	Int32 volume, bit = 1;
 	Uint32 spd;
-	Int32 outputbuf=0,count=0;
-
-	if (chp->regs[2] & 0x10)
-		volume = sndp->common.envout;
-	else if (chp->regs[2] & 0xF)
-	{
-#ifdef VOLUME_3
-		volume = LogToLin(sndp->logtbl, voltbl[sndp->type][(chp->regs[2] & 0xF)<<1] + sndp->common.mastervolume, LOG_LIN_BITS - 21);
-#else
-		volume = LogToLin(sndp->logtbl, ((0xF - (chp->regs[2] & 0xF)) << (LOG_BITS - 1 + 1)) + sndp->common.mastervolume, LOG_LIN_BITS - 21);
-#endif
-	}
-	else
-		volume = 0;
+	
+	PSGSOUND *sndp = sp;
 
 	spd = ((chp->regs[1] & 0x0F) << 8) + chp->regs[0];
 
 	/* if (!spd) return 0; */
 
-	chp->output = (chp->adr & 1) ? volume : 0;
-	if (spd /*> 7*/)
+	if (spd/* > 7*/)
 	{
 		spd <<= CPS_SHIFT;
-		chp->cycles += chp->cps<<RENDERS;
+		chp->cycles += chp->cps;
 		while (chp->cycles >= spd)
 		{
-			outputbuf += chp->output;
-			count++;
-
-			chp->count++;
 			chp->cycles -= spd;
-
-			if(chp->count >= 1<<RENDERS){
-				chp->count = 0;
-				chp->adr++;
-				chp->output = (chp->adr & 1) ? volume : 0;
-			}
+			chp->adr++;
 		}
-	}else{
-		chp->output = volume;
-	}
-	outputbuf += chp->output;
-	count++;
-
-	if (chp->mute){
-		return 0;
 	}
 
-	switch(chp->key & 3){
-	case 0:
-		return volume;
-	case 1:
-		return outputbuf / count;
-	case 2:
-		return volume * sndp->common.rngout / 256;
-	case 3:
-		return (outputbuf / count) * sndp->common.rngout / 256;
-	}
-    return 0;
-}
+	if (chp->mute || !chp->key) return 0;
 
-__inline static void MSXSoundDaStep(PSGSOUND *sndp)
-{
-	sndp->da.cycles += sndp->da.cps;
-	while (sndp->da.cycles > 0)
+	if (chp->regs[2] & 0x10)
+		volume = sndp->common.envout;
+	else if (chp->regs[2] & 0xF)
 	{
-		sndp->da.cycles -= 1<<22;
-		sndp->common.davolume = sndp->common.davolume *15 /16;
-		if(sndp->common.daenable)sndp->common.davolume += ((1<<16) - sndp->common.davolume)/16;
+		volume = LogToLin(sndp->logtbl, ((0xF - (chp->regs[2] & 0xF)) << (LOG_BITS - 1 + 1)) + sndp->common.mastervolume, LOG_LIN_BITS - 21);
 	}
+	else
+		volume = 0;
+
+	if (spd && (chp->key & 1))
+	{
+		bit ^= (chp->adr & 1) ^ 1;
+	}
+	if (chp->key & 2)
+	{
+		bit ^= sndp->common.rngout;
+	}
+	return bit ? volume: 0;
 }
-
-
 
 #if (((-1) >> 1) == -1)
 #define SSR(x, y) (((Int32)x) >> (y))
@@ -329,9 +242,12 @@ __inline static void MSXSoundDaStep(PSGSOUND *sndp)
 #define SSR(x, y) (((x) >= 0) ? ((x) >> (y)) : (-((-(x) - 1) >> (y)) - 1))
 #endif
 
-static Int32 PSGSoundSquare(PSGSOUND *sndp, PSG_SQUARE *chp)
+static Int32 PSGSoundSquare(void *sp, PSG_SQUARE *chp)
 {
 	Int32 out;
+	
+	PSGSOUND *sndp = sp;
+
 	out = PSGSoundSquareSub(sndp, chp);
 #if DCFIX
 	chp->dcptr = (chp->dcptr + 1) & ((1 << DCFIX) - 1);
@@ -349,38 +265,43 @@ static Int32 PSGSoundSquare(PSGSOUND *sndp, PSG_SQUARE *chp)
 	return out + out;
 }
 
-static void sndsynth(void *ctx, Int32 *p)
+#define DEVICE PSG
+#include "assist.h"
+
+static void sndsynth(void *sp, Int32 *p)
 {
-	PSGSOUND *sndp = ctx;
 	Int32 accum = 0;
+	PSGSOUND *sndp = sp;
+
+	
 	sndp->common.rngout = PSGSoundNoiseStep(sndp);
 	sndp->common.envout = PSGSoundEnvelopeStep(sndp);
+    
     if (chmask[0])
         accum += PSGSoundSquare(sndp, &sndp->square[0]);
     if (chmask[1])
         accum += PSGSoundSquare(sndp, &sndp->square[1]);
     if (chmask[2])
         accum += PSGSoundSquare(sndp, &sndp->square[2]);
-	MSXSoundDaStep(sndp);
-	if (chmask[3])
-		accum += LogToLin(sndp->logtbl,sndp->common.mastervolume, LOG_LIN_BITS-7)
-		* (sndp->common.daenable ? (sndp->common.davolume*7 + (1<<16))/7 : sndp->common.davolume);
-#ifdef VOLUME_3
-	accum = accum * PSG_VOL;
-#endif
+    
+	if (sndp->common.daenable)
+		accum += LogToLin(sndp->logtbl, sndp->common.mastervolume + sndp->common.davolume, LOG_LIN_BITS - 21);
 	p[0] += accum;
 	p[1] += accum;
 }
 
-static void sndvolume(void *ctx, Int32 volume)
+static void sndvolume(void *sp, Int32 volume)
 {
-	PSGSOUND *sndp = ctx;
+	PSGSOUND *sndp = sp;
+
 	volume = (volume << (LOG_BITS - 8)) << 1;
 	sndp->common.mastervolume = volume;
 }
 
-__inline static Uint32 sndreadreg(PSGSOUND *sndp, Uint32 a)
+__inline static Uint32 sndreadreg(void *sp, Uint32 a)
 {
+	PSGSOUND *sndp = sp;
+
 	switch (a)
 	{
 		case 0x0: case 0x1:
@@ -399,29 +320,28 @@ __inline static Uint32 sndreadreg(PSGSOUND *sndp, Uint32 a)
 	return 0;
 }
 
-__inline static void sndwritereg(PSGSOUND *sndp, Uint32 a, Uint32 v)
+__inline static void sndwritereg(void *sp, Uint32 a, Uint32 v)
 {
-	sndp->regs[a&0xf]=v;
+	PSGSOUND *sndp = sp;
+
 	switch (a)
 	{
 		case 0x0: case 0x1:
 		case 0x2: case 0x3:
 		case 0x4: case 0x5:
-        {
-			sndp->square[a >> 1].regs[a & 1] = v;
-            
-            int ch = a >> 1;
-            int reg =
-            ((sndp->square[ch].regs[1] & 0x0f) << 8) |
-            (sndp->square[ch].regs[0] & 0xff);
-            
-            if (reg)
-                chstate[ch].freq = NES_CPUCLOCK / ((reg+1) << 5);
-            else
-                chstate[ch].freq = 0;
-
-        }
-			break;
+            {
+                sndp->square[a >> 1].regs[a & 1] = v;
+                int ch = a >> 1;
+                int reg =
+                    ((sndp->square[ch].regs[1] & 0x0f) << 8) |
+                     (sndp->square[ch].regs[0] & 0xff);
+                
+                if (reg)
+                    chstate[ch].freq = NES_CPUCLOCK / ((reg+1) << 5);
+                else
+                    chstate[ch].freq = 0;
+            }
+            break;
 		case 0x6:
 			sndp->noise.regs[0] = v;
 			break;
@@ -441,37 +361,38 @@ __inline static void sndwritereg(PSGSOUND *sndp, Uint32 a, Uint32 v)
 			sndp->square[a - 0x8].regs[2] = v;
 			break;
 		case 0xD:
+			sndp->envelope.adr = env_table[v & 0xF];
 		case 0xB: case 0xC:
 			sndp->envelope.regs[a - 0xB] = v;
-			sndp->envelope.adr = env_table[sndp->regs[0xd] & 0xF];
-			sndp->envelope.cycles = 0;
 			break;
 	}
 }
 
-static Uint32 sndread(void *ctx, Uint32 a)
+static Uint32 sndread(void *sp, Uint32 a)
 {
-	PSGSOUND *sndp = ctx;
+	PSGSOUND *sndp = sp;
+
 	return sndreadreg(sndp, sndp->common.adr);
 }
 
-static void sndwrite(void *ctx, Uint32 a, Uint32 v)
+static void sndwrite(void *sp, Uint32 a, Uint32 v)
 {
-	PSGSOUND *sndp = ctx;
-	switch (a & 0x3)
+	PSGSOUND *sndp = sp;
+
+	switch (a & 3)
 	{
 		case 0:
 			sndp->common.adr = v;
 			break;
 		case 1:
-            if (nes_logfile)
+			if (nes_logfile)
 				fprintf(nes_logfile,"PSG:%02X:%02X\n",
-                        sndp->common.adr, v);
+					sndp->common.adr, v);
 
 			sndwritereg(sndp, sndp->common.adr, v);
 			break;
 		case 2:
-			sndp->common.daenable = v&1;
+			sndp->common.daenable = v;
 			break;
 	}
 }
@@ -492,28 +413,23 @@ static void PSGSoundNoiseReset(PSG_NOISE *ch, Uint32 clock, Uint32 freq)
 static void PSGSoundEnvelopeReset(PSG_ENVELOPE *ch, Uint32 clock, Uint32 freq)
 {
 	XMEMSET(ch, 0, sizeof(PSG_ENVELOPE));
-	ch->cps = DivFix(clock * 2, 2 * 16 * freq, CPS_ENVSHIFT);
+	ch->cps = DivFix(clock * 2, 16 * freq, CPS_ENVSHIFT);
 	ch->adr = env_table[0];
 }
 
-static void MSXSoundDaReset(MSX_DA *ch, Uint32 clock, Uint32 freq)
+static void sndreset(void *sp, Uint32 clock, Uint32 freq)
 {
-	XMEMSET(ch, 0, sizeof(MSX_DA));	ch->cps = DivFix(clock * 2, 16 * freq, CPS_SHIFT);
-
-}
-
-static void sndreset(void *ctx, Uint32 clock, Uint32 freq)
-{
-	PSGSOUND *sndp = ctx;
-	const static Uint8 initdata[] = { 0,0,0,0,0,0, 0, 0x38, 0x0,0x0,0x0, 0,0,0 };
+	const static Uint8 initdata[] = { 0,0,0,0,0,0, 0, 0x3f, 0x0,0x0,0x0, 0,0,8 };
 	Uint32 i;
+	
+	PSGSOUND *sndp = sp;
+
 	XMEMSET(&sndp->common, 0, sizeof(sndp->common));
 	PSGSoundNoiseReset(&sndp->noise, clock, freq);
 	PSGSoundEnvelopeReset(&sndp->envelope, clock, freq);
 	PSGSoundSquareReset(&sndp->square[0], clock, freq);
 	PSGSoundSquareReset(&sndp->square[1], clock, freq);
 	PSGSoundSquareReset(&sndp->square[2], clock, freq);
-	MSXSoundDaReset(&sndp->da, clock, freq);
 	if (sndp->type == PSG_TYPE_AY_3_8910)
 	{
 		sndp->envelope.adrmask = 0x1e;
@@ -529,26 +445,11 @@ static void sndreset(void *ctx, Uint32 clock, Uint32 freq)
 	}
 }
 
-static void sndrelease(void *ctx)
+static void sndrelease(void *sp)
 {
-	PSGSOUND *sndp = ctx;
-	if (sndp) {
-		if (sndp->logtbl) sndp->logtbl->release(sndp->logtbl->ctx);
-		XFREE(sndp);
-	}
-}
-
-static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
-
-//ここからレジスタビュアー設定
-static PSGSOUND *sndpr;
-Uint32 (*ioview_ioread_DEV_AY8910)(Uint32 a);
-Uint32 (*ioview_ioread_DEV_MSX)(Uint32 a);
-static Uint32 ioview_ioread_bf(Uint32 a){
-	if(a<=0xd)return sndpr->regs[a];else return 0x100;
-}
-static Uint32 ioview_ioread_bf2(Uint32 a){
-	if(a==0x0)return sndpr->common.daenable;else return 0x100;
+	PSGSOUND *sndp = sp;
+	if (sndp->logtbl) sndp->logtbl->release(sndp->logtbl->ctx);
+	XFREE(sndp);
 }
 
 
@@ -563,14 +464,13 @@ static void setchstate(void *p, int dev, S_STATE *state)
 }
 
 
-//ここまでレジスタビュアー設定
+static void setinst(void *ctx, Uint32 n, void *p, Uint32 l){}
 
 KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type)
 {
 	PSGSOUND *sndp;
 	sndp = XMALLOC(sizeof(PSGSOUND));
 	if (!sndp) return 0;
-	XMEMSET(sndp, 0, sizeof(PSGSOUND));
 	sndp->type = psg_type;
 	sndp->kmif.ctx = sndp;
 	sndp->kmif.release = sndrelease;
@@ -580,20 +480,13 @@ KMIF_SOUND_DEVICE *PSGSoundAlloc(Uint32 psg_type)
 	sndp->kmif.write = sndwrite;
 	sndp->kmif.read = sndread;
 	sndp->kmif.setinst = setinst;
-    
-    sndp->kmif.setmask = setmask;
+	sndp->kmif.setmask = setmask;
 	sndp->kmif.setchstate = setchstate;
-    
 	sndp->logtbl = LogTableAddRef();
 	if (!sndp->logtbl)
 	{
 		sndrelease(sndp);
 		return 0;
 	}
-	//ここからレジスタビュアー設定
-	sndpr = sndp;
-	ioview_ioread_DEV_AY8910 = ioview_ioread_bf;
-	ioview_ioread_DEV_MSX = ioview_ioread_bf2;
-	//ここまでレジスタビュアー設定
 	return &sndp->kmif;
 }

@@ -82,6 +82,11 @@ LIBNEZ := $(OBJDIR)/$(LIBNEZ)
 CFLAGS += $(addprefix -I$(SRCDIR)/,$(DIRS))
 CFLAGS += -I.
 
+
+#
+#
+#
+
 dynamic : $(TARGET)
 
 static : $(TARGET_S)

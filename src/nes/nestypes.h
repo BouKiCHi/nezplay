@@ -43,11 +43,11 @@ typedef char			Char;
 #endif
 #include <memory.h>
 
-#ifdef _WIN32
-#define XSLEEP(t)		_sleep(t)
-#else
+// #ifdef _WIN32
+//#define XSLEEP(t)		_sleep(t)
+//#else
 #define XSLEEP(t)
-#endif
+//#endif
 #define XMALLOC(s)		malloc(s)
 #define XREALLOC(p,s)	realloc(p,s)
 #define XFREE(p)		free(p)
